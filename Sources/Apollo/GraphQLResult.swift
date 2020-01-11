@@ -1,5 +1,15 @@
 import Foundation
 
+/// Metadata about the a returned result.
+public struct GraphQLResultMetadata {
+  /// The oldest date that data in the result was updated.
+  public let maxAge: Date
+
+  init(maxAge: Date = Date()) {
+    self.maxAge = maxAge
+  }
+}
+
 /// Represents the result of a GraphQL operation.
 public struct GraphQLResult<Data>: Parseable {
   
@@ -13,6 +23,8 @@ public struct GraphQLResult<Data>: Parseable {
   public let errors: [GraphQLError]?
   /// A dictionary which services can use however they see fit to provide additional information to clients.
   public let extensions: [String: Any]?
+  /// Metadata of this result.
+  public let metadata: GraphQLResultMetadata
 
   /// Represents source of data
   public enum Source {
@@ -28,12 +40,14 @@ public struct GraphQLResult<Data>: Parseable {
               extensions: [String: Any]?,
               errors: [GraphQLError]?,
               source: Source,
-              dependentKeys: Set<CacheKey>?) {
+              dependentKeys: Set<CacheKey>?,
+              metadata: GraphQLResultMetadata) {
     self.data = data
     self.extensions = extensions
     self.errors = errors
     self.source = source
     self.dependentKeys = dependentKeys
+    self.metadata = metadata
   }
 }
 
@@ -46,6 +60,7 @@ extension GraphQLResult where Data: Decodable {
               extensions: nil,
               errors: [],
               source: .server,
-              dependentKeys: nil)
+              dependentKeys: nil,
+              metadata: GraphQLResultMetadata())
   }
 }

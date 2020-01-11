@@ -20,7 +20,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       let query = HeroNameQuery()
       
       store.withinReadTransaction({ transaction in
-        let data = try transaction.read(query: query)
+        let (data, _) = try transaction.read(query: query)
         
         XCTAssertEqual(data.hero?.__typename, "Droid")
         XCTAssertEqual(data.hero?.name, "R2-D2")
@@ -44,7 +44,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       let query = HeroNameQuery(episode: .jedi)
      
       store.withinReadTransaction({ transaction in
-        let data = try transaction.read(query: query)
+        let (data, _) = try transaction.read(query: query)
         
         XCTAssertEqual(data.hero?.__typename, "Droid")
         XCTAssertEqual(data.hero?.name, "R2-D2")
@@ -178,7 +178,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       
       let readExpectation = self.expectation(description: "Read complete")
       store.withinReadTransaction({ transaction in
-        let data = try transaction.read(query: query)
+        let (data, _) = try transaction.read(query: query)
         
         XCTAssertEqual(data.hero?.name, "R2-D2")
         let friendsNames = data.hero?.friends?.compactMap { $0?.name }
@@ -312,7 +312,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       
       let readExpectation = self.expectation(description: "Read complete")
       store.withinReadTransaction({ transaction in
-        let r2d2 = try transaction.readObject(ofType: HeroDetails.self, withKey: "2001")
+        let (r2d2, _) = try transaction.readObject(ofType: HeroDetails.self, withKey: "2001")
         
         XCTAssertEqual(r2d2.name, "R2-D2")
         XCTAssertEqual(r2d2.asDroid?.primaryFunction, "Protocol")
@@ -371,7 +371,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
 
       let readExpectation = self.expectation(description: "Read complete")
       store.withinReadTransaction({ transaction in
-        let friendsNamesFragment = try transaction.readObject(ofType: FriendsNames.self, withKey: "2001")
+        let (friendsNamesFragment, _) = try transaction.readObject(ofType: FriendsNames.self, withKey: "2001")
 
         let friendsNames = friendsNamesFragment.friends?.compactMap { $0?.name }
         XCTAssertEqual(friendsNames, ["Luke Skywalker", "Han Solo", "Leia Organa"])
@@ -431,6 +431,59 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       }
       
       self.wait(for: [loadExpectation], timeout: 1)
+    }
+  }
+
+  func testReceivedAtAfterUpdateQuery() throws {
+    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
+    let initialRecords = RecordSet([
+      "QUERY_ROOT": (["hero": Reference(key: "QUERY_ROOT.hero")], yesterday),
+      "QUERY_ROOT.hero": (["__typename": "Droid", "name": "R2-D2"], yesterday)
+    ])
+
+    try self.withCache(initialRecords: initialRecords) {
+      let store = ApolloStore(cache: $0)
+
+      let query = HeroNameQuery()
+      let expectation = self.expectation(description: "transaction'd")
+
+      store.withinReadWriteTransaction { transaction in
+        try transaction.update(query: query) { data in
+          data.hero?.name = "Artoo"
+          expectation.fulfill()
+        }
+      }
+
+      self.waitForExpectations(timeout: 1)
+
+      // the query age is that of the oldest row read, so still yesterday
+      let result = try store.load(query: query).await()
+      XCTAssertEqual(
+        Calendar.current.compare(result.context.resultAge, to: yesterday, toGranularity: .minute),
+        .orderedSame
+      )
+
+      // verify that the age of the modified row is from just now
+      let cacheReadExpectation = self.expectation(description: "cacheReadExpectation")
+      store.withinReadTransaction(
+        {
+          return try $0.readObject(ofType: HeroNameQuery.Data.Hero.self, withKey: "QUERY_ROOT.hero")
+        },
+        completion: {
+          do {
+            let (_, context) = try $0.get()
+            XCTAssertEqual(
+              Calendar.current.compare(Date(), to: context.resultAge, toGranularity: .minute),
+              .orderedSame
+            )
+            cacheReadExpectation.fulfill()
+          } catch {
+            XCTAssertThrowsError(error)
+          }
+        }
+      )
+
+      self.waitForExpectations(timeout: 1)
     }
   }
 }
