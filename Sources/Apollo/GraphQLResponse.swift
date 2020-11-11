@@ -82,7 +82,7 @@ public final class GraphQLResponse<Data: GraphQLSelectionSet>: Parseable {
                       errors: errors,
                       source: .server,
                       dependentKeys: nil,
-                      context: GraphQLResultContext()),
+                      context: GraphQLResultMetadata()),
         nil
       ))
     }
@@ -110,14 +110,14 @@ public final class GraphQLResponse<Data: GraphQLSelectionSet>: Parseable {
                            errors: errors,
                            source: .server,
                            dependentKeys: nil,
-                           context: GraphQLResultContext())
+                           context: GraphQLResultMetadata())
     } else {
       return GraphQLResult(data: nil,
                            extensions: extensions,
                            errors: errors,
                            source: .server,
                            dependentKeys: nil,
-                           context: GraphQLResultContext())
+                           context: GraphQLResultMetadata())
     }
   }
 }

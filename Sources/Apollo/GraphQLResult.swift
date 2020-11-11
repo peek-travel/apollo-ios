@@ -1,14 +1,12 @@
 import Foundation
 
-/// Metadata about the returned result.
-public struct GraphQLResultContext {
-  /// The date when the result was last received.
-  /// - Note: Apollo may merge several records with different ages when reading from cache data.
-  /// When such a merge happens, this value will be the age of the oldest record.
-  public let resultAge: Date
+/// Metadata about the a returned result.
+public struct GraphQLResultMetadata {
+  /// The oldest date that data in the result was updated.
+  public let maxAge: Date
 
-  init(resultAge: Date = Date()) {
-    self.resultAge = resultAge
+  init(maxAge: Date = Date()) {
+    self.maxAge = maxAge
   }
 }
 
@@ -26,7 +24,7 @@ public struct GraphQLResult<Data>: Parseable {
   /// A dictionary which services can use however they see fit to provide additional information to clients.
   public let extensions: [String: Any]?
   /// Metadata context behind this result.
-  public let context: GraphQLResultContext
+  public let context: GraphQLResultMetadata
 
   /// Represents source of data
   public enum Source {
@@ -43,7 +41,7 @@ public struct GraphQLResult<Data>: Parseable {
               errors: [GraphQLError]?,
               source: Source,
               dependentKeys: Set<CacheKey>?,
-              context: GraphQLResultContext) {
+              context: GraphQLResultMetadata) {
     self.data = data
     self.extensions = extensions
     self.errors = errors
@@ -63,6 +61,6 @@ extension GraphQLResult where Data: Decodable {
               errors: [],
               source: .server,
               dependentKeys: nil,
-              context: GraphQLResultContext())
+              context: GraphQLResultMetadata())
   }
 }
