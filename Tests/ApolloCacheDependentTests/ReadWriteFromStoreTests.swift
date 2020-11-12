@@ -459,7 +459,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
       // the query age is that of the oldest row read, so still yesterday
       let result = try store.load(query: query).await()
       XCTAssertEqual(
-        Calendar.current.compare(result.context.resultAge, to: yesterday, toGranularity: .minute),
+        Calendar.current.compare(result.metadata.maxAge, to: yesterday, toGranularity: .minute),
         .orderedSame
       )
 
@@ -471,9 +471,9 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
         },
         completion: {
           do {
-            let (_, context) = try $0.get()
+            let (_, metadata) = try $0.get()
             XCTAssertEqual(
-              Calendar.current.compare(Date(), to: context.resultAge, toGranularity: .minute),
+              Calendar.current.compare(Date(), to: metadata.maxAge, toGranularity: .minute),
               .orderedSame
             )
             cacheReadExpectation.fulfill()
