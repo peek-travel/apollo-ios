@@ -23,8 +23,17 @@ public struct RecordSet {
     self.storage[row.record.key] = row
   }
 
-  public mutating func clear() {
-    storage.removeAll()
+  public mutating func clear(_ clearingPolicy: CacheClearingPolicy = .allRecords) {
+    switch clearingPolicy._value {
+    case let .first(count): self.storage = .init(self.storage.dropFirst(count))
+
+    case let .last(count): self.storage = .init(self.storage.dropLast(count))
+
+    case let .allMatchingKeyPattern(pattern): self.storage = self.storage.filter { !$0.key.contains(pattern) }
+
+    case .allRecords: fallthrough
+    default: self.storage.removeAll()
+    }
   }
 
   public mutating func insert<S: Sequence>(contentsOf rows: S) where S.Iterator.Element == RecordRow {

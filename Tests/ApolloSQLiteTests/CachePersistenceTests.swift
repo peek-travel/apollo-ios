@@ -47,70 +47,105 @@ class CachePersistenceTests: XCTestCase {
   func testPassInConnectionDoesNotThrow() {
     XCTAssertNoThrow(try SQLiteNormalizedCache(db: Connection()))
   }
+}
 
-  func testClearCache() {
-    let query = HeroNameQuery()
+// MARK: Cache clearing
+
+extension CachePersistenceTests {
+  func testClearMatchingKeyPattern() {
+    let notFoundExpectation = self.expectation(description: "records should not exist")
+
+    self.testCacheClearing(withPolicy: .allMatchingKeyPattern("*hero*")) { client, _ in
+      client.store.withinReadTransaction {
+        $0.loadRecords(forKeys: ["QUERY_ROOT.hero", "QUERY_ROOT.hero(episode:EMPIRE)"]) { result in
+          defer { notFoundExpectation.fulfill() }
+
+          do {
+            let results = try result.get()
+            XCTAssertTrue(results.allSatisfy({ $0 == nil }))
+          } catch {
+            XCTFail("Unexpected error: \(error)")
+          }
+        }
+      }
+    }
+  }
+
+  func testClearAllRecords() {
+    let emptyCacheExpectation = self.expectation(description: "Fetch query from empty cache")
+
+    self.testCacheClearing(withPolicy: .allRecords) { client, query in
+      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) {
+        defer { emptyCacheExpectation.fulfill() }
+
+        do {
+          _ = try $0.get()
+          XCTFail("This should have returned an error")
+        } catch let error as JSONDecodingError {
+          // we're expecting this error
+          guard case .missingValue = error else {
+            XCTFail("Unexpected JSON error: \(error)")
+            return
+          }
+        } catch {
+          XCTFail("Unexpected error: \(error)")
+        }
+      }
+    }
+  }
+
+  private func testCacheClearing(
+    withPolicy policy: CacheClearingPolicy,
+    validateAssumptions: @escaping (ApolloClient, TwoHeroesQuery) throws -> Void,
+    file: StaticString = #file, line: UInt = #line
+  ) rethrows {
+    let query = TwoHeroesQuery()
     let sqliteFileURL = SQLiteTestCacheProvider.temporarySQLiteFileURL()
 
     SQLiteTestCacheProvider.withCache(fileURL: sqliteFileURL) { (cache) in
       let store = ApolloStore(cache: cache)
       let networkTransport = MockNetworkTransport(body: [
         "data": [
-          "hero": [
-            "name": "Luke Skywalker",
-            "__typename": "Human"
-          ]
+          "luke": ["name": "Luke Skywalker", "__typename": "Human"],
+          "r2": ["name": "R2-D2", "__typename": "Droid"]
         ]
       ], store: store)
       let client = ApolloClient(networkTransport: networkTransport, store: store)
 
       let networkExpectation = self.expectation(description: "Fetching query from network")
-      let emptyCacheExpectation = self.expectation(description: "Fetch query from empty cache")
       let cacheClearExpectation = self.expectation(description: "cache cleared")
 
-      client.fetch(query: query, cachePolicy: .fetchIgnoringCacheData) { outerResult in
+      // load the cache for the test
+      client.fetch(query: query, cachePolicy: .fetchIgnoringCacheData) { initialResult in
         defer { networkExpectation.fulfill() }
-        
-        switch outerResult {
-        case .failure(let error):
-          XCTFail("Unexpected faillure: \(error)")
-        case .success(let graphQLResult):
-          XCTAssertEqual(graphQLResult.data?.hero?.name, "Luke Skywalker")
+
+        // sanity check that the test is ready
+        do {
+          let data = try initialResult.get().data
+          XCTAssertEqual(data?.luke?.name, "Luke Skywalker", file: file, line: line)
+        } catch {
+          XCTFail("Unexpected failure: \(error)", file: file, line: line)
+          return
         }
-        
-        client.clearCache(completion: { result in
+
+        // clear the cache as specified for the test
+        client.clearCache(usingPolicy: policy) { result in
           switch result {
-          case .success:
-            break
-          case .failure(let error):
-            XCTFail("Error clearing cache: \(error)")
+          case .success: break
+          case let .failure(error): XCTFail("Error clearing cache: \(error)", file: file, line: line)
           }
           cacheClearExpectation.fulfill()
-        })
+        }
 
-        client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { innerResult in
-          defer { emptyCacheExpectation.fulfill() }
-          
-          switch innerResult {
-          case .success:
-            XCTFail("This should have returned an error")
-          case .failure(let error):
-            if let resultError = error as? JSONDecodingError {
-              switch resultError {
-              case .missingValue:
-                // Correct error!
-                break
-              default:
-                XCTFail("Unexpected JSON error: \(error)")
-              }
-            } else {
-              XCTFail("Unexpected error: \(error)")
-            }
-          }
+        // validate the test
+        do {
+          try validateAssumptions(client, query)
+        } catch {
+          XCTFail("Unexpected error \(error)", file: file, line: line)
         }
       }
 
-      self.waitForExpectations(timeout: 2, handler: nil)
+      self.waitForExpectations(timeout: 2)
     }
   }
 }
