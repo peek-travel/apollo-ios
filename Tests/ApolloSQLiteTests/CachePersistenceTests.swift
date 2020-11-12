@@ -94,6 +94,25 @@ extension CachePersistenceTests {
     }
   }
 
+  func testClearByDate() {
+    let emptyCacheExpectation = self.expectation(description: "empty cache")
+
+    self.testCacheClearing(withPolicy: .allMatchingKeyPattern("*hero*")) { client, _ in
+      client.store.withinReadTransaction {
+        $0.loadRecords(forKeys: ["QUERY_ROOT.hero", "QUERY_ROOT.hero(episode:EMPIRE)"]) { result in
+          defer { emptyCacheExpectation.fulfill() }
+
+          do {
+            let results = try result.get()
+            XCTAssertTrue(results.allSatisfy({ $0 == nil }))
+          } catch {
+            XCTFail("Unexpected error: \(error)")
+          }
+        }
+      }
+    }
+  }
+
   private func testCacheClearing(
     withPolicy policy: CacheClearingPolicy,
     validateAssumptions: @escaping (ApolloClient, TwoHeroesQuery) throws -> Void,

@@ -13,6 +13,8 @@ public struct CacheClearingPolicy: Equatable {
   /// Clears the the last (most recent) records in the cache up to the given limit.
   /// - Parameter k: The number of records to remove from the cache.
   public static func last(_ k: Int) -> CacheClearingPolicy { .init(.last(k)) }
+  /// Clears all records from the cache that was pulled in before the date provided.
+  public static func everythingBefore(_ date: Date) -> CacheClearingPolicy { .init(.everythingBefore(date)) }
 
   // actual policy storage
 
@@ -28,6 +30,7 @@ public struct CacheClearingPolicy: Equatable {
     case allMatchingKeyPattern(String)
     case first(Int)
     case last(Int)
+    case everythingBefore(Date)
 
     public static func ==(lhs: _Policy, rhs: _Policy) -> Bool {
       switch (lhs, rhs) {
@@ -35,6 +38,7 @@ public struct CacheClearingPolicy: Equatable {
       case let (.allMatchingKeyPattern(left), .allMatchingKeyPattern(right)): return left == right
       case let (.first(left), .first(right)): return left == right
       case let (.last(left), .last(right)): return left == right
+      case let (.everythingBefore(left), .everythingBefore(right)): return left == right
       default: return false
       }
     }

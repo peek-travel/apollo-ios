@@ -141,6 +141,12 @@ public final class SQLiteNormalizedCache {
       )
       try self.db.run(matchingRecords.delete())
 
+    case let .everythingBefore(date):
+      let oldRecords = records.where(
+        self.lastReceivedAt < Int64(date.timeIntervalSince1970)
+      )
+      try self.db.run(oldRecords.delete())
+
     case .allRecords: fallthrough
     default:
       try self.db.run(records.delete())

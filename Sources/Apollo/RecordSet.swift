@@ -31,6 +31,11 @@ public struct RecordSet {
 
     case let .allMatchingKeyPattern(pattern): self.storage = self.storage.filter { !$0.key.contains(pattern) }
 
+    case let .everythingBefore(date): self.storage = self.storage.filter {
+      let comparison = Calendar.current.compare($0.value.lastReceivedAt, to: date, toGranularity: .minute)
+      return comparison != .orderedAscending
+    }
+
     case .allRecords: fallthrough
     default: self.storage.removeAll()
     }
