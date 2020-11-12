@@ -4,17 +4,6 @@ import Foundation
 public typealias CacheKeyForObject = (_ object: JSONObject) -> JSONValue?
 public typealias DidChangeKeysFunc = (Set<CacheKey>, UUID?) -> Void
 
-func rootCacheKey<Operation: GraphQLOperation>(for operation: Operation) -> String {
-  switch operation.operationType {
-  case .query:
-    return "QUERY_ROOT"
-  case .mutation:
-    return "MUTATION_ROOT"
-  case .subscription:
-    return "SUBSCRIPTION_ROOT"
-  }
-}
-
 protocol ApolloStoreSubscriber: class {
   
   /// A callback that can be received by subcribers when keys are changed within the database
@@ -178,7 +167,7 @@ public final class ApolloStore {
       let firstReceivedTracker = GraphQLFirstReceivedAtTracker()
 
       return try transaction.execute(selections: Operation.Data.selections,
-                                     onObjectWithKey: rootCacheKey(for: query),
+                                     onObjectWithKey: query.operationType.cacheKey,
                                      variables: query.variables,
                                      accumulator: zip(mapper, dependencyTracker, firstReceivedTracker))
     }.map { (data: Operation.Data, dependentKeys: Set<CacheKey>, resultContext) in
@@ -217,7 +206,7 @@ public final class ApolloStore {
 
     public func read<Query: GraphQLQuery>(query: Query) throws -> (Query.Data, GraphQLResultMetadata) {
       return try readObject(ofType: Query.Data.self,
-                            withKey: rootCacheKey(for: query),
+                            withKey: query.operationType.cacheKey,
                             variables: query.variables)
     }
 
@@ -320,7 +309,7 @@ public final class ApolloStore {
 
     public func write<Query: GraphQLQuery>(data: Query.Data, forQuery query: Query) throws {
       try write(object: data,
-                withKey: rootCacheKey(for: query),
+                withKey: query.operationType.cacheKey,
                 variables: query.variables)
     }
 
