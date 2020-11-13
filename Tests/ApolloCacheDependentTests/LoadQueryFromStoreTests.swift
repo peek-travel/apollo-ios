@@ -418,7 +418,7 @@ extension LoadQueryFromStoreTests {
           XCTAssertNil(result.errors, file: file, line: line)
           XCTAssertEqual(result.data?.hero?.name, "R2-D2", file: file, line: line)
           XCTAssertEqual(
-            Calendar.current.compare(expectedResultAge, to: result.context.resultAge, toGranularity: .minute),
+            Calendar.current.compare(expectedResultAge, to: result.metadata.maxAge, toGranularity: .minute),
             .orderedSame,
             file: file,
             line: line

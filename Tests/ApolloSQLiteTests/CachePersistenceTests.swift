@@ -88,7 +88,7 @@ class CachePersistenceTests: XCTestCase {
           cacheClearExpectation.fulfill()
         })
 
-        client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { innerResult in
+        client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { innerResult in
           defer { emptyCacheExpectation.fulfill() }
           
           switch innerResult {
@@ -148,11 +148,11 @@ extension CachePersistenceTests {
           case .success(let graphQLResult):
             XCTAssertEqual(graphQLResult.data?.hero?.name, "Luke Skywalker", file: file, line: line)
             // Do another fetch from cache to ensure that data is cached before creating new cache
-            client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { innerResult in
+            client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { innerResult in
               SQLiteTestCacheProvider.withCache(fileURL: sqliteFileURL) { cache in
                 let newStore = ApolloStore(cache: cache)
                 let newClient = ApolloClient(networkTransport: networkTransport, store: newStore)
-                newClient.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { newClientResult in
+                newClient.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { newClientResult in
                   defer { newCacheExpectation.fulfill() }
                   switch newClientResult {
                   case .success(let newClientGraphQLResult):
