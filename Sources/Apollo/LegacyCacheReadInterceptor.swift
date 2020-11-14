@@ -36,7 +36,7 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
         chain.proceedAsync(request: request,
                            response: response,
                            completion: completion)
-      case let .returnCacheDataAndFetch(ttl):
+      case .returnCacheDataAndFetch:
         self.fetchFromCache(for: request, chain: chain) { cacheFetchResult in
           switch cacheFetchResult {
           case .failure:
@@ -44,7 +44,12 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
             break
           case .success(let graphQLResult):
             // if the result is considered outside of the acceptable TTL, then keep going through the chain
-            guard self.isDataStillValid(for: graphQLResult.metadata.maxAge, accordingTo: ttl) else { break }
+            guard
+              self.isDataStillValid(
+                for: graphQLResult.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else { break }
             // data is still considered fresh, just return the cache
             chain.returnValueAsync(for: request,
                                    value: graphQLResult,
@@ -56,7 +61,7 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                              response: response,
                              completion: completion)
         }
-      case let .returnCacheDataElseFetch(ttl):
+      case .returnCacheDataElseFetch:
         self.fetchFromCache(for: request, chain: chain) { cacheFetchResult in
           switch cacheFetchResult {
           case .failure:
@@ -65,7 +70,12 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                                response: response,
                                completion: completion)
           case .success(let graphQLResult):
-            guard self.isDataStillValid(for: graphQLResult.metadata.maxAge, accordingTo: ttl) else {
+            guard
+              self.isDataStillValid(
+                for: graphQLResult.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else {
               // data is considered old, hit the network without returning an error
               chain.proceedAsync(request: request, response: response, completion: completion)
               return
@@ -76,7 +86,7 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                                    completion: completion)
           }
         }
-      case let .returnCacheDataDontFetch(ttl):
+      case .returnCacheDataDontFetch:
         self.fetchFromCache(for: request, chain: chain) { cacheFetchResult in
           switch cacheFetchResult {
           case .failure(let error):
@@ -86,7 +96,12 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                                    response: response,
                                    completion: completion)
           case .success(let result):
-            guard self.isDataStillValid(for: result.metadata.maxAge, accordingTo: ttl) else {
+            guard
+              self.isDataStillValid(
+                for: result.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else {
               // cache hit with stale data, return an error
               chain.handleErrorAsync(CacheError.dataExpired, request: request, response: response, completion: completion)
               return

@@ -5,31 +5,18 @@ import Dispatch
 /// A cache policy that specifies whether results should be fetched from the server or loaded from the local cache.
 public enum CachePolicy: Equatable {
   /// Return data from the cache if available, else fetch results from the server.
-  case returnCacheDataElseFetch(ttl: TimeInterval?)
+  case returnCacheDataElseFetch
   ///  Always fetch results from the server.
   case fetchIgnoringCacheData
   ///  Always fetch results from the server, and don't store these in the cache.
   case fetchIgnoringCacheCompletely
   /// Return data from the cache if available, else return nil.
-  case returnCacheDataDontFetch(ttl: TimeInterval?)
+  case returnCacheDataDontFetch
   /// Return data from the cache if available, and always fetch results from the server.
-  case returnCacheDataAndFetch(ttl: TimeInterval?)
+  case returnCacheDataAndFetch
   
   /// The current default cache policy.
-  public static var `default`: CachePolicy {
-    .returnCacheDataElseFetch(ttl: nil)
-  }
-
-  public static func ==(lhs: CachePolicy, rhs: CachePolicy) -> Bool {
-    switch (lhs, rhs) {
-    case let (.returnCacheDataElseFetch(left), .returnCacheDataElseFetch(right)),
-         let (.returnCacheDataDontFetch(left), .returnCacheDataDontFetch(right)),
-         let (.returnCacheDataAndFetch(left), .returnCacheDataAndFetch(right)): return left == right
-    case (.fetchIgnoringCacheData, .fetchIgnoringCacheData),
-         (.fetchIgnoringCacheCompletely, .fetchIgnoringCacheCompletely): return true
-    default: return false
-    }
-  }
+  public static var `default`: CachePolicy { .returnCacheDataElseFetch }
 }
 
 /// A handler for operation results.
@@ -98,7 +85,7 @@ extension ApolloClient: ApolloClientProtocol {
   }
   
   @discardableResult public func fetch<Query: GraphQLQuery>(query: Query,
-                                                            cachePolicy: CachePolicy = .returnCacheDataElseFetch(ttl: nil),
+                                                            cachePolicy: CachePolicy = .returnCacheDataElseFetch,
                                                             contextIdentifier: UUID? = nil,
                                                             queue: DispatchQueue = DispatchQueue.main,
                                                             resultHandler: GraphQLResultHandler<Query.Data>? = nil) -> Cancellable {
@@ -111,7 +98,7 @@ extension ApolloClient: ApolloClientProtocol {
   }
 
   public func watch<Query: GraphQLQuery>(query: Query,
-                                         cachePolicy: CachePolicy = .returnCacheDataElseFetch(ttl: nil),
+                                         cachePolicy: CachePolicy = .returnCacheDataElseFetch,
                                          resultHandler: @escaping GraphQLResultHandler<Query.Data>) -> GraphQLQueryWatcher<Query> {
     let watcher = GraphQLQueryWatcher(client: self,
                                       query: query,

@@ -452,7 +452,7 @@ class WatchQueryTests: XCTestCase, CacheTesting {
 
       var expectation = self.expectation(description: "Fetching query")
 
-      _ = client.watch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { result in
+      _ = client.watch(query: query, cachePolicy: .returnCacheDataDontFetch) { result in
         verifyResult(result)
         expectation.fulfill()
       }

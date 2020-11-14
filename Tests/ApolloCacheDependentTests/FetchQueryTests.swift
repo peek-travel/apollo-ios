@@ -78,7 +78,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataAndFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataAndFetch) { result in
         
         switch result {
         case .success(let queryResult):
@@ -126,7 +126,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataElseFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataElseFetch) { result in
         defer { expectation.fulfill() }
         
         switch result {
@@ -167,7 +167,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataElseFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataElseFetch) { result in
         defer { expectation.fulfill() }
         
         switch result {
@@ -209,7 +209,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { result in
         defer { expectation.fulfill() }
         
         switch result {
@@ -251,7 +251,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { result in
         defer { expectation.fulfill() }
         
         switch result {
@@ -280,7 +280,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation2 = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { result in
         defer { expectation2.fulfill() }
         switch result {
         case .success:
@@ -330,7 +330,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       
       let expectation = self.expectation(description: "Fetching query")
       
-      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch(ttl: nil)) { result in
+      client.fetch(query: query, cachePolicy: .returnCacheDataDontFetch) { result in
         defer { expectation.fulfill() }
         switch result {
         case .success:
@@ -436,7 +436,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       DispatchQueue.global().async {
         let watcher =
           client1.watch(
-          query: HeroAndFriendsNamesWithIDsQuery(), cachePolicy: .returnCacheDataAndFetch(ttl: nil)) { result in
+          query: HeroAndFriendsNamesWithIDsQuery(), cachePolicy: .returnCacheDataAndFetch) { result in
             if result.apollo.value?.source == .some(.server) {
               group.leave()
             }
@@ -451,7 +451,7 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       DispatchQueue.global().async {
         let watcher =
           client2.watch(
-          query: HeroAndFriendsNamesWithIDsQuery(), cachePolicy: .returnCacheDataAndFetch(ttl: nil)) { result in
+          query: HeroAndFriendsNamesWithIDsQuery(), cachePolicy: .returnCacheDataAndFetch) { result in
             if result.apollo.value?.source == .some(.server) {
               group.leave()
             }
