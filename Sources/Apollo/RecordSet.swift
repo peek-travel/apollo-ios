@@ -24,7 +24,7 @@ public struct RecordSet {
   }
 
   public mutating func clear(_ clearingPolicy: CacheClearingPolicy = .allRecords) {
-    switch clearingPolicy._value {
+    switch clearingPolicy {
     case let .first(count): self.storage = .init(self.storage.dropFirst(count))
 
     case let .last(count): self.storage = .init(self.storage.dropLast(count))
@@ -36,8 +36,8 @@ public struct RecordSet {
       return comparison != .orderedAscending
     }
 
-    case .allRecords: fallthrough
-    default: self.storage.removeAll()
+    case .allRecords:
+      self.storage.removeAll()
     }
   }
 
