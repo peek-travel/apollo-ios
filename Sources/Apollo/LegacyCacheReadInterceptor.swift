@@ -116,9 +116,7 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
   }
 
   private func isDataStillValid(for dataAge: Date, accordingTo ttl: TimeInterval?) -> Bool {
-    guard let ttl = ttl else { return true }
-    let comparisonDate = Date().addingTimeInterval(-ttl)
-    return Calendar.current.compare(dataAge, to: comparisonDate, toGranularity: .minute) != .orderedAscending
+    return ttl.map { dataAge < Date().addingTimeInterval(-$0) } ?? true
   }
   
   private func fetchFromCache<Operation: GraphQLOperation>(
