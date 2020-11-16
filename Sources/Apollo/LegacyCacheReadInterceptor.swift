@@ -30,6 +30,26 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                          completion: completion)
     case .query:
       switch request.cachePolicy {
+      case .fetchReturningCacheDataOnError:
+        chain.proceedAsync(
+          request: request,
+          response: response,
+          completion: { fetchResult in
+            // if the fetch request failed, try to read from the cache
+            switch fetchResult {
+            case let .success(fetchData):
+              chain.returnValueAsync(for: request, value: fetchData, completion: completion)
+
+            case .failure:
+              // retry the request with returning the cache
+              chain.retry(
+                request: request.clone(withPolicy: .returnCacheDataDontFetch),
+                completion: completion
+              )
+            }
+          }
+        )
+
       case .fetchIgnoringCacheCompletely,
            .fetchIgnoringCacheData:
         // Don't bother with the cache, just keep going
@@ -131,5 +151,11 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
       
       completion(loadResult)
     }
+  }
+}
+
+extension HTTPRequest {
+  fileprivate func clone(withPolicy policy: CachePolicy) -> HTTPRequest {
+    return .init(self, cachePolicy: policy)
   }
 }
