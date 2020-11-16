@@ -21,29 +21,14 @@ public final class SQLiteNormalizedCache {
   private let version = Expression<Int64>("version")
   private let shouldVacuumOnClear: Bool
 
-  /// Designated initializer
-  ///
+  /// Creates a store that uses the provided SQLite file connection.
   /// - Parameters:
-  ///   - fileURL: The file URL to use for your database.
-  ///   - shouldVacuumOnClear: If the database should also be `VACCUM`ed on clear to remove all traces of info. Defaults to `false` since this involves a performance hit, but this should be used if you are storing any Personally Identifiable Information in the cache.
+  ///   - db: The database connection to use.
+  ///   - shouldVacuumOnClear: If the database file should compact "VACUUM" its storage when clearing records. This can be a potentially long operation.
+  ///   Default is `false`. This SHOULD be set to `true` if you are storing any Personally Identifiable Information in the cache.
   ///   - initialRecords: A set of records to initialize the database with.
-  /// - Throws: Any errors attempting to open or create the database.
-  convenience public init(fileURL: URL, shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
-    try self.init(
-      db: try Connection(.uri(fileURL.absoluteString), readonly: false),
-      shouldVacuumOnClear: shouldVacuumOnClear,
-      initialRecords: initialRecords
-    )
-  }
-
-  ///
-  /// Initializer that takes the Connection to use
-  /// - Parameters:
-  ///   - db: The database Connection to use
-  ///   - shouldVacuumOnClear: If the database should also be `VACCUM`ed on clear to remove all traces of info. Defaults to `false` since this involves a performance hit, but this should be used if you are storing any Personally Identifiable Information in the cache.
-  ///   - initialRecords: A set of records to initialize the database with.
-  /// - Throws: Any errors attempting to access the database
-  public init(db: Connection, shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
+  /// - Throws: Any errors attempting to access the database.
+  public init(db: Connection, compactFileOnClear shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
     self.shouldVacuumOnClear = shouldVacuumOnClear
     self.db = db
     try self.setUpDatabase()
@@ -63,6 +48,25 @@ public final class SQLiteNormalizedCache {
         self.lastReceivedAt <- Int64(row.lastReceivedAt.timeIntervalSince1970)
       ))
     }
+  }
+
+  /// Creates a store that will establish its own connection to the SQLite file at the provided url.
+  /// - Parameters:
+  ///   - fileURL: The file URL to use for your database.
+  ///   - shouldVacuumOnClear: If the database file should compact "VACUUM" its storage when clearing records. This can be a potentially long operation.
+  ///   Default is `false`. This SHOULD be set to `true` if you are storing any Personally Identifiable Information in the cache.
+  ///   - initialRecords: A set of records to initialize the database with.
+  /// - Throws: Any errors attempting to open or create the database.
+  convenience public init(
+    fileURL: URL,
+    compactFileOnClear shouldVacuumOnClear: Bool = false,
+    initialRecords: RecordSet? = nil
+  ) throws {
+    try self.init(
+      db: try Connection(.uri(fileURL.absoluteString), readonly: false),
+      compactFileOnClear: shouldVacuumOnClear,
+      initialRecords: initialRecords
+    )
   }
 
   private func recordCacheKey(forFieldCacheKey fieldCacheKey: CacheKey) -> CacheKey {
@@ -121,11 +125,35 @@ public final class SQLiteNormalizedCache {
     return try self.db.prepare(query).map { try parse(row: $0) }
   }
 
-  private func clearRecords() throws {
-    try self.db.run(records.delete())
-    if self.shouldVacuumOnClear {
-      try self.db.prepare("VACUUM;").run()
+  private func clearRecords(accordingTo policy: CacheClearingPolicy) throws {
+    switch policy {
+    case let .first(count):
+      let firstKRecords = records.select(self.id).order(self.id.asc).limit(count)
+      try self.db.run(firstKRecords.delete())
+
+    case let .last(count):
+      let lastKRecords = records.select(self.id).order(self.id.desc).limit(count)
+      try self.db.run(lastKRecords.delete())
+
+    case let .allMatchingKeyPattern(pattern):
+      let matchingRecords = records.where(
+        self.key.like(pattern.replacingOccurrences(of: "*", with: "%"))
+      )
+      try self.db.run(matchingRecords.delete())
+
+    case let .everythingBefore(date):
+      let oldRecords = records.where(
+        self.lastReceivedAt < Int64(date.timeIntervalSince1970)
+      )
+      try self.db.run(oldRecords.delete())
+
+    case .allRecords:
+      try self.db.run(records.delete())
     }
+
+    guard self.shouldVacuumOnClear else { return }
+
+    try self.db.prepare("VACUUM;").run()
   }
 
   private func parse(row: Row) throws -> RecordRow {
@@ -213,10 +241,14 @@ extension SQLiteNormalizedCache: NormalizedCache {
                                                    result: result)
   }
 
-  public func clear(callbackQueue: DispatchQueue?, completion: ((Swift.Result<Void, Error>) -> Void)?) {
+  public func clear(
+    _ clearingPolicy: CacheClearingPolicy,
+    callbackQueue: DispatchQueue?,
+    completion: ((Swift.Result<Void, Error>) -> Void)?
+  ) {
     let result: Swift.Result<Void, Error>
     do {
-      try clearImmediately()
+      try self.clearRecords(accordingTo: clearingPolicy)
       result = .success(())
     } catch {
       result = .failure(error)
@@ -227,8 +259,8 @@ extension SQLiteNormalizedCache: NormalizedCache {
                                                    result: result)
   }
 
-  public func clearImmediately() throws {
-    try clearRecords()
+  public func clearImmediately(_ clearingPolicy: CacheClearingPolicy) throws {
+    try self.clearRecords(accordingTo: clearingPolicy)
   }
 }
 

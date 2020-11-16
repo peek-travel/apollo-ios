@@ -1,6 +1,7 @@
 #if !COCOAPODS
 import ApolloCore
 #endif
+import Foundation
 
 public typealias ResultMap = [String: Any?]
 
@@ -125,6 +126,11 @@ public struct GraphQLTypeCondition: GraphQLSelection {
     self.possibleTypes = possibleTypes
     self.selections = selections;
   }
+}
+
+public protocol GraphQLFragment: GraphQLSelectionSet {
+  static var fragmentDefinition: String { get }
+  static var possibleTypes: [String] { get }
 }
 
 public struct GraphQLFragmentSpread: GraphQLSelection {
