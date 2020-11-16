@@ -1,9 +1,8 @@
-import ApolloCore
 import Foundation
 import Dispatch
 
 /// A cache policy that specifies whether results should be fetched from the server or loaded from the local cache.
-public enum CachePolicy: Equatable {
+public enum CachePolicy {
   /// Return data from the cache if available, else fetch results from the server.
   case returnCacheDataElseFetch
   ///  Always fetch results from the server.
