@@ -79,9 +79,12 @@ extension ApolloClient: ApolloClientProtocol {
     }
   }
 
-  public func clearCache(callbackQueue: DispatchQueue = .main,
-                         completion: ((Result<Void, Error>) -> Void)? = nil) {
-    self.store.clearCache(completion: completion)
+  public func clearCache(
+    usingPolicy policy: CacheClearingPolicy,
+    callbackQueue: DispatchQueue = .main,
+    completion: ((Result<Void, Error>) -> Void)? = nil
+  ) {
+    self.store.clearCache(usingPolicy: policy, callbackQueue: callbackQueue, completion: completion)
   }
   
   @discardableResult public func fetch<Query: GraphQLQuery>(query: Query,
@@ -151,4 +154,15 @@ extension ApolloClient: ApolloClientProtocol {
   }
 }
 
+// MARK: - convenience overloads
 
+extension ApolloClient {
+  /// Clears all records from the cache store.
+  /// - Warning: The cache may be used by other clients. Calling this method will affect all clients using the same cache!
+  /// - Parameters:
+  ///   - callbackQueue: An optional queue to execute the completion handler on. The default is `.main`.
+  ///   - completion: An optional completion closure to execute when the cache has been cleared. The default is `nil`.
+  public func clearCache(callbackQueue: DispatchQueue = .main, completion: ((Result<Void, Error>) -> Void)? = nil) {
+    self.clearCache(usingPolicy: .allRecords, callbackQueue: callbackQueue, completion: completion)
+  }
+}

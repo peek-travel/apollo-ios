@@ -471,9 +471,9 @@ class ReadWriteFromStoreTests: XCTestCase, CacheTesting {
         },
         completion: {
           do {
-            let (_, context) = try $0.get()
+            let (_, metadata) = try $0.get()
             XCTAssertEqual(
-              Calendar.current.compare(Date(), to: context.maxAge, toGranularity: .minute),
+              Calendar.current.compare(Date(), to: metadata.maxAge, toGranularity: .minute),
               .orderedSame
             )
             cacheReadExpectation.fulfill()

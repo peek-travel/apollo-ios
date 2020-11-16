@@ -4,17 +4,6 @@ import Foundation
 public typealias CacheKeyForObject = (_ object: JSONObject) -> JSONValue?
 public typealias DidChangeKeysFunc = (Set<CacheKey>, UUID?) -> Void
 
-func rootCacheKey<Operation: GraphQLOperation>(for operation: Operation) -> String {
-  switch operation.operationType {
-  case .query:
-    return "QUERY_ROOT"
-  case .mutation:
-    return "MUTATION_ROOT"
-  case .subscription:
-    return "SUBSCRIPTION_ROOT"
-  }
-}
-
 protocol ApolloStoreSubscriber: class {
   
   /// A callback that can be received by subcribers when keys are changed within the database
@@ -56,18 +45,34 @@ public final class ApolloStore {
     }
   }
 
-  /// Clears the instance of the cache. Note that a cache can be shared across multiple `ApolloClient` objects, so clearing that underlying cache will clear it for all clients.
-  ///
-  /// - Returns: A promise which fulfills when the Cache is cleared.
+  /// Clears all records from the cache.
+  /// - Warning: If this cache is shared between multiple `ApolloClient` objects, each client will be affected by the change in the cache.
+  /// - Parameters:
+  ///   - callbackQueue: An optional callback queue to execute the `completion` handler on. The default is `.main`.
+  ///   - completion: An optional completion handler to execute when the cache has been cleared according the specified policy.
+  /// - Returns: A promise which fulfills when the cache has been cleared.
   public func clearCache(callbackQueue: DispatchQueue = .main, completion: ((Result<Void, Error>) -> Void)? = nil) {
-    queue.async(flags: .barrier) {
-      self.cacheLock.withWriteLock {
-          self.cache.clearPromise()
-        }.andThen {
-          DispatchQueue.apollo.returnResultAsyncIfNeeded(on: callbackQueue,
-                                                         action: completion,
-                                                         result: .success(()))
-      }
+    self.clearCache(usingPolicy: .allRecords, callbackQueue: callbackQueue, completion: completion)
+  }
+
+  /// Clears the cache according to the specified policy.
+  /// - Warning: If this cache is shared between multiple `ApolloClient` objects, each client will be affected by the change in the cache.
+  /// - Parameters:
+  ///   - policy: The cache clearing policy to use during cleanup.
+  ///   - callbackQueue: An optional callback queue to execute the `completion` handler on. The default is `.main`.
+  ///   - completion: An optional completion handler to execute when the cache has been cleared according the specified policy.
+  /// - Returns: A promise which fulfills when the cache has been cleared.
+  public func clearCache(
+    usingPolicy policy: CacheClearingPolicy,
+    callbackQueue: DispatchQueue = .main,
+    completion: ((Result<Void, Error>) -> Void)? = nil
+  ) {
+    self.queue.async(flags: .barrier) {
+      self.cacheLock
+        .withWriteLock { self.cache.clearPromise(policy) }
+        .andThen {
+          DispatchQueue.apollo.returnResultAsyncIfNeeded(on: callbackQueue, action: completion, result: .success(()))
+        }
     }
   }
 
@@ -178,7 +183,7 @@ public final class ApolloStore {
       let firstReceivedTracker = GraphQLFirstReceivedAtTracker()
 
       return try transaction.execute(selections: Operation.Data.selections,
-                                     onObjectWithKey: rootCacheKey(for: query),
+                                     onObjectWithKey: query.operationType.cacheKey,
                                      variables: query.variables,
                                      accumulator: zip(mapper, dependencyTracker, firstReceivedTracker))
     }.map { (data: Operation.Data, dependentKeys: Set<CacheKey>, resultContext) in
@@ -217,7 +222,7 @@ public final class ApolloStore {
 
     public func read<Query: GraphQLQuery>(query: Query) throws -> (Query.Data, GraphQLResultMetadata) {
       return try readObject(ofType: Query.Data.self,
-                            withKey: rootCacheKey(for: query),
+                            withKey: query.operationType.cacheKey,
                             variables: query.variables)
     }
 
@@ -320,7 +325,7 @@ public final class ApolloStore {
 
     public func write<Query: GraphQLQuery>(data: Query.Data, forQuery query: Query) throws {
       try write(object: data,
-                withKey: rootCacheKey(for: query),
+                withKey: query.operationType.cacheKey,
                 variables: query.variables)
     }
 
@@ -391,9 +396,9 @@ internal extension NormalizedCache {
     }
   }
 
-  func clearPromise() -> Promise<Void> {
+  func clearPromise(_ policy: CacheClearingPolicy) -> Promise<Void> {
     return Promise { fulfill, reject in
-      self.clear(callbackQueue: nil) { result in
+      self.clear(policy, callbackQueue: nil) { result in
         switch result {
         case .success(let success):
           fulfill(success)
