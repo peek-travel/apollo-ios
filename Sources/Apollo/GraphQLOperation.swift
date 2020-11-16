@@ -24,6 +24,8 @@ public protocol GraphQLOperation: AnyObject {
 
   var variables: GraphQLMap? { get }
 
+  var responseCacheTTL: TimeInterval? { get }
+
   associatedtype Data: GraphQLSelectionSet
 }
 
@@ -39,6 +41,8 @@ public extension GraphQLOperation {
   var variables: GraphQLMap? {
     return nil
   }
+
+  var responseCacheTTL: TimeInterval? { nil }
 }
 
 // - MARK: Conformances

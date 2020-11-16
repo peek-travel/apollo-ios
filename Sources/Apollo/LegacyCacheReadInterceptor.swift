@@ -2,6 +2,9 @@ import Foundation
 
 /// An interceptor that reads data from the legacy cache for queries, following the `HTTPRequest`'s `cachePolicy`.
 public class LegacyCacheReadInterceptor: ApolloInterceptor {
+  public enum CacheError: Error {
+    case dataExpired
+  }
     
   private let store: ApolloStore
   
@@ -40,6 +43,14 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
             // Don't return a cache miss error, just keep going
             break
           case .success(let graphQLResult):
+            // if the result is considered outside of the acceptable TTL, then keep going through the chain
+            guard
+              self.isDataStillValid(
+                for: graphQLResult.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else { break }
+            // data is still considered fresh, just return the cache
             chain.returnValueAsync(for: request,
                                    value: graphQLResult,
                                    completion: completion)
@@ -59,6 +70,16 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                                response: response,
                                completion: completion)
           case .success(let graphQLResult):
+            guard
+              self.isDataStillValid(
+                for: graphQLResult.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else {
+              // data is considered old, hit the network without returning an error
+              chain.proceedAsync(request: request, response: response, completion: completion)
+              return
+            }
             // Cache hit! We're done.
             chain.returnValueAsync(for: request,
                                    value: graphQLResult,
@@ -75,6 +96,16 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
                                    response: response,
                                    completion: completion)
           case .success(let result):
+            guard
+              self.isDataStillValid(
+                for: result.metadata.maxAge,
+                accordingTo: request.operation.responseCacheTTL
+              )
+            else {
+              // cache hit with stale data, return an error
+              chain.handleErrorAsync(CacheError.dataExpired, request: request, response: response, completion: completion)
+              return
+            }
             chain.returnValueAsync(for: request,
                                    value: result,
                                    completion: completion)
@@ -82,6 +113,10 @@ public class LegacyCacheReadInterceptor: ApolloInterceptor {
         }
       }
     }
+  }
+
+  private func isDataStillValid(for dataAge: Date, accordingTo ttl: TimeInterval?) -> Bool {
+    return ttl.map { dataAge < Date().addingTimeInterval(-$0) } ?? true
   }
   
   private func fetchFromCache<Operation: GraphQLOperation>(
