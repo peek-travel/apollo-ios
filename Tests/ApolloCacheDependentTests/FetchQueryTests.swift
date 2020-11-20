@@ -223,6 +223,49 @@ class FetchQueryTests: XCTestCase, CacheTesting {
       self.waitForExpectations(timeout: 5, handler: nil)
     }
   }
+
+  func testFetchReturningCacheDataOnErrorReturnsData() throws {
+    struct TestError: Error { }
+
+    let initialRecords: RecordSet = [
+      "QUERY_ROOT": ["hero": Reference(key: "hero")],
+      "hero": [
+        "name": "R2-D2",
+        "__typename": "Droid",
+      ]
+    ]
+
+    self.withCache(initialRecords: initialRecords) { cache in
+      let store = ApolloStore(cache: cache)
+      let client = ApolloClient(
+        networkTransport: MockNetworkTransport(
+          body: [
+            "data": [
+              "hero": [] // incomplete data will cause an error on fetch
+            ]
+          ],
+          store: store),
+        store: store
+      )
+
+      let fetchExpectation = self.expectation(description: "result should be returned")
+
+      client.fetch(query: HeroNameQuery(), cachePolicy: .fetchReturningCacheDataOnError) {
+        defer { fetchExpectation.fulfill() }
+
+        do {
+          let result = try $0.get()
+          let data = try XCTUnwrap(result.data)
+          XCTAssertEqual(data.hero?.name, "R2-D2")
+          XCTAssertEqual(result.source, .cache)
+        } catch {
+          XCTFail("Data should have been returned")
+        }
+      }
+    }
+
+    self.waitForExpectations(timeout: 1)
+  }
   
   func testClearCache() throws {
     let query = HeroNameQuery()
