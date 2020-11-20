@@ -1,3 +1,5 @@
+import Foundation
+
 /// Enumeration of the possible GraphQL operations that can be executed against an API endpoint.
 public enum GraphQLOperationType {
   case query
