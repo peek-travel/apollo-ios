@@ -100,3 +100,9 @@ public struct CacheReadInterceptor: ApolloInterceptor {
       }
     }
 }
+
+extension HTTPRequest {
+   fileprivate func clone(withPolicy policy: CachePolicy) -> HTTPRequest {
+     return .init(self, cachePolicy: policy)
+   }
+ }
