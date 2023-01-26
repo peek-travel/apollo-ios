@@ -259,8 +259,6 @@ class FetchQueryTests: XCTestCase, CacheDependentTesting {
   }
 
   func testFetchReturningCacheDataOnErrorReturnsData() throws {
-    struct TestError: Error { }
-
     class HeroNameSelectionSet: MockSelectionSet {
       override class var __selections: [Selection] { [
         .field("hero", Hero.self)
