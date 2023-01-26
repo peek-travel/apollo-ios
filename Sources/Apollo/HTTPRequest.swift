@@ -65,6 +65,14 @@ open class HTTPRequest<Operation: GraphQLOperation>: Hashable {
     self.addHeader(name: "apollographql-client-version", value: clientVersion)
     self.addHeader(name: "apollographql-client-name", value: clientName)
   }
+
+  internal init(_ original: HTTPRequest<Operation>, cachePolicy: CachePolicy) {
+    self.graphQLEndpoint = original.graphQLEndpoint
+    self.operation = original.operation
+    self.contextIdentifier = original.contextIdentifier
+    self.additionalHeaders = original.additionalHeaders
+    self.cachePolicy = cachePolicy
+  }
   
   open func addHeader(name: String, value: String) {
     self.additionalHeaders[name] = value

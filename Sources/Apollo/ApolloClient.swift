@@ -16,6 +16,8 @@ public enum CachePolicy: Hashable {
   case returnCacheDataDontFetch
   /// Return data from the cache if available, and always fetch results from the server.
   case returnCacheDataAndFetch
+  /// Attempt to fetch from the server, using cache data if available on error
+  case fetchReturningCacheDataOnError
   
   /// The current default cache policy.
   public static var `default`: CachePolicy = .returnCacheDataElseFetch

@@ -257,6 +257,56 @@ class FetchQueryTests: XCTestCase, CacheDependentTesting {
     
     wait(for: [serverRequestExpectation, fetchResultFromServerExpectation], timeout: Self.defaultWaitTimeout)
   }
+
+  func testFetchReturningCacheDataOnErrorReturnsData() throws {
+    class HeroNameSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] { [
+        .field("hero", Hero.self)
+      ]}
+
+      class Hero: MockSelectionSet {
+        override class var __selections: [Selection] {[
+          .field("__typename", String.self),
+          .field("name", String.self)
+        ]}
+      }
+    }
+
+    let query = MockQuery<HeroNameSelectionSet>()
+
+    mergeRecordsIntoCache([
+      "QUERY_ROOT": ["hero": CacheReference("hero")],
+      "hero": [
+        "name": "R2-D2",
+        "__typename": "Droid"
+      ]
+    ])
+
+    let serverRequestExpectation =
+      server.expect(MockQuery<HeroNameSelectionSet>.self) { request in
+      [
+        "data": [
+          "hero": [] // incomplete data will cause an error on fetch
+        ]
+      ]
+    }
+
+    let resultObserver = makeResultObserver(for: query)
+
+    let fetchResultFromServerExpectation = resultObserver.expectation(description: "Received result from cache") { result in
+      try XCTAssertSuccessResult(result) { graphQLResult in
+        XCTAssertEqual(graphQLResult.source, .cache)
+        XCTAssertNil(graphQLResult.errors)
+
+        let data = try XCTUnwrap(graphQLResult.data)
+        XCTAssertEqual(data.hero?.name, "R2-D2")
+      }
+    }
+
+    client.fetch(query: query, cachePolicy: .fetchReturningCacheDataOnError, resultHandler: resultObserver.handler)
+
+    wait(for: [serverRequestExpectation, fetchResultFromServerExpectation], timeout: Self.defaultWaitTimeout)
+  }
   
   func test__fetch__givenCachePolicy_returnCacheDataDontFetch_givenDataIsCached_doesntHitNetwork() throws {
     class HeroNameSelectionSet: MockSelectionSet {
