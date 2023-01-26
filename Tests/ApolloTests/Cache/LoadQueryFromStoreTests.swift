@@ -494,4 +494,104 @@ class LoadQueryFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
       }
     }
   }
+
+  func testResultContextWithDataFromYesterday() throws {
+    let now = Date()
+    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let aYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: now)!
+
+    let initialRecords = RecordSet([
+      "QUERY_ROOT": (["hero": CacheReference("hero")], yesterday),
+      "hero": (["__typename": "Droid", "name": "R2-D2"], yesterday),
+      "ignoredData": (["__typename": "Droid", "name": "R2-D3"], aYearAgo)
+    ])
+    try self.testResulContextWhenLoadingHeroNameQueryWithAge(initialRecords: initialRecords, expectedResultAge: yesterday)
+  }
+
+  func testResultContextWithDataFromMixedDates() throws {
+    let now = Date()
+    let oneHourAgo = Calendar.current.date(byAdding: .hour, value: -1, to: now)!
+    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let aYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: now)!
+
+
+    let fields = (
+      ["hero": CacheReference("hero")],
+      ["__typename": "Droid", "name": "R2-D2"],
+      ["__typename": "Droid", "name": "R2-D3"]
+    )
+
+    let initialRecords1 = RecordSet([
+      "QUERY_ROOT": (fields.0, yesterday),
+      "hero": (fields.1, yesterday),
+      "ignoredData": (fields.2, aYearAgo)
+    ])
+
+
+    try self.testResulContextWhenLoadingHeroNameQueryWithAge(initialRecords: initialRecords1, expectedResultAge: yesterday)
+
+    let initialRecords2 = RecordSet([
+      "QUERY_ROOT": (fields.0, yesterday),
+      "hero": (fields.1, oneHourAgo),
+      "ignoredData": (fields.2, aYearAgo)
+    ])
+
+    try self.testResulContextWhenLoadingHeroNameQueryWithAge(initialRecords: initialRecords2, expectedResultAge: yesterday)
+  }
+
 }
+
+// MARK: - Helpers
+
+extension LoadQueryFromStoreTests {
+  
+  private func testResulContextWhenLoadingHeroNameQueryWithAge(
+    initialRecords: RecordSet,
+    expectedResultAge: Date,
+    file: StaticString = #file,
+    line: UInt = #line
+  ) throws {
+
+    class HeroNameSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] { [
+        .field("hero", Hero.self)
+      ]}
+
+      class Hero: MockSelectionSet {
+        override class var __selections: [Selection] {[
+          .field("__typename", String.self),
+          .field("name", String.self)
+        ]}
+      }
+    }
+
+    let query = MockQuery<HeroNameSelectionSet>()
+    mergeRecordsIntoCache(initialRecords)
+    loadFromStore(operation: query) { result in
+      switch result {
+      case let .success(result):
+        XCTAssertNil(result.errors, file: file, line: line)
+        XCTAssertEqual(result.data?.hero?.name, "R2-D2", file: file, line: line)
+        XCTAssertEqual(
+          Calendar.current.compare(expectedResultAge, to: result.metadata.maxAge, toGranularity: .minute),
+          .orderedSame,
+          file: file,
+          line: line
+        )
+      case let .failure(error):
+        XCTFail("Unexpected error: \(error)", file: file, line: line)
+      }
+    }
+  }
+}
+
+extension RecordSet {
+   init(_ dictionary: Dictionary<CacheKey, (fields: Record.Fields, receivedAt: Date)>) {
+     self.init(rows: dictionary.map { element in
+       RecordRow(
+         record: Record(key: element.key, element.value.fields),
+         lastReceivedAt: element.value.receivedAt
+       )
+     })
+   }
+ }

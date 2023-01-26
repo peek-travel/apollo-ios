@@ -87,8 +87,8 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
       store.withinReadTransaction({ transaction in
         let data = try transaction.read(query: query)
         
-        XCTAssertEqual(data.hero?.name, "R2-D2")
-        let friendsNames = data.hero?.friends?.map { $0.name }
+        XCTAssertEqual(data.0.hero?.name, "R2-D2")
+        let friendsNames = data.0.hero?.friends?.map { $0.name }
         XCTAssertEqual(friendsNames, ["Luke Skywalker", "Han Solo", "Leia Organa"])
       }, completion: { result in
         defer { allReadsCompletedExpectation.fulfill() }
@@ -127,8 +127,8 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
       store.withinReadTransaction({ transaction in
         let data = try transaction.read(query: query)
         
-        XCTAssertEqual(data.hero?.name, "R2-D2")
-        let friendsNames = data.hero?.friends?.map { $0.name }
+        XCTAssertEqual(data.0.hero?.name, "R2-D2")
+        let friendsNames = data.0.hero?.friends?.map { $0.name }
         XCTAssertEqual(friendsNames, ["Luke Skywalker", "Han Solo", "Leia Organa"])
       }, completion: { result in
         defer { allReadsCompletedExpectation.fulfill() }
@@ -233,8 +233,8 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
 
         let data = try transaction.read(query: query)
 
-        XCTAssertEqual(data.hero.name, "Artoo")
-        XCTAssertEqual(data.hero.friends.last?.name, "Droid #\(i)")
+        XCTAssertEqual(data.0.hero.name, "Artoo")
+        XCTAssertEqual(data.0.hero.friends.last?.name, "Droid #\(i)")
       }, completion: { result in
         defer { allUpdatesCompletedExpectation.fulfill() }
         XCTAssertSuccessResult(result)
@@ -248,10 +248,10 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
     store.withinReadTransaction({ transaction in
       let data = try transaction.read(query: query)
 
-      XCTAssertEqual(data.hero.name, "Artoo")
+      XCTAssertEqual(data.0.hero.name, "Artoo")
 
       let friendsNames: [String] = try XCTUnwrap(
-        data.hero.friends.compactMap { $0.name }
+        data.0.hero.friends.compactMap { $0.name }
       )
       let expectedFriendsNames = (0..<numberOfUpdates).map { "Droid #\($0)" }
       XCTAssertEqualUnordered(friendsNames, expectedFriendsNames)
@@ -357,8 +357,8 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
 
         let data = try transaction.read(query: query)
 
-        XCTAssertEqual(data.hero.name, "Artoo")
-        XCTAssertEqual(data.hero.friends.last?.name, "Droid #\(i)")
+        XCTAssertEqual(data.0.hero.name, "Artoo")
+        XCTAssertEqual(data.0.hero.friends.last?.name, "Droid #\(i)")
       }, completion: { result in
         defer { allUpdatesCompletedExpectation.fulfill() }
         XCTAssertSuccessResult(result)
@@ -372,10 +372,10 @@ class StoreConcurrencyTests: XCTestCase, CacheDependentTesting {
     store.withinReadTransaction({ transaction in
       let data = try transaction.read(query: query)
 
-      XCTAssertEqual(data.hero.name, "Artoo")
+      XCTAssertEqual(data.0.hero.name, "Artoo")
 
       let friendsNames: [String] = try XCTUnwrap(
-        data.hero.friends.compactMap { $0.name }
+        data.0.hero.friends.compactMap { $0.name }
       )
 
       let expectedFriendsNames = (0..<numberOfUpdates).map { "Droid #\($0)" }

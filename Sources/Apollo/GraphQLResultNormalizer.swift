@@ -6,15 +6,15 @@ import ApolloAPI
 final class GraphQLResultNormalizer: GraphQLResultAccumulator {
   private var records: RecordSet = [:]
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) -> JSONValue? {
+  func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) -> JSONValue? {
     return scalar
   }
 
-  func acceptNullValue(info: FieldExecutionInfo) -> JSONValue? {
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> JSONValue? {
     return NSNull()
   }
 
-  func acceptMissingValue(info: FieldExecutionInfo) -> JSONValue? {
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> JSONValue? {
     return nil
   }
 
@@ -38,7 +38,7 @@ final class GraphQLResultNormalizer: GraphQLResultAccumulator {
     let cachePath = info.cachePath.joined
 
     let object = JSONObject(fieldEntries, uniquingKeysWith: { (_, last) in last })
-    records.merge(record: Record(key: cachePath, object))
+    records.merge(record: Record(key: cachePath, object), lastReceivedAt: Date())
     
     return CacheReference(cachePath)
   }

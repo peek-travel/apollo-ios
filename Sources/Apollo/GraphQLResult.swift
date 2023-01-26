@@ -3,6 +3,29 @@ import Foundation
 import ApolloAPI
 #endif
 
+/// Metadata about the a returned result.
+ public struct GraphQLResultMetadata {
+   /// The oldest date that data in the result was updated.
+   public let maxAge: Date
+   public let id = UUID()
+
+   init(maxAge: Date = Date()) {
+     self.maxAge = maxAge
+   }
+ }
+
+extension GraphQLResultMetadata: Hashable {
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(self.id)
+    hasher.combine(self.maxAge)
+  }
+
+  public static func == (lhs: GraphQLResultMetadata, rhs: GraphQLResultMetadata) -> Bool {
+    return lhs.id == rhs.id && lhs.maxAge == rhs.maxAge
+  }
+}
+
 /// Represents the result of a GraphQL operation.
 public struct GraphQLResult<Data: RootSelectionSet> {
 
@@ -12,6 +35,8 @@ public struct GraphQLResult<Data: RootSelectionSet> {
   public let errors: [GraphQLError]?
   /// A dictionary which services can use however they see fit to provide additional information to clients.
   public let extensions: [String: AnyHashable]?
+  /// Metadata of this result.
+  public let metadata: GraphQLResultMetadata
 
   /// Represents source of data
   public enum Source: Hashable {
@@ -27,12 +52,14 @@ public struct GraphQLResult<Data: RootSelectionSet> {
               extensions: [String: AnyHashable]?,
               errors: [GraphQLError]?,
               source: Source,
-              dependentKeys: Set<CacheKey>?) {
+              dependentKeys: Set<CacheKey>?,
+              metadata: GraphQLResultMetadata) {
     self.data = data
     self.extensions = extensions
     self.errors = errors
     self.source = source
     self.dependentKeys = dependentKeys
+    self.metadata = metadata
   }
 }
 
@@ -43,7 +70,8 @@ extension GraphQLResult: Equatable where Data: Equatable {
     lhs.errors == rhs.errors &&
     lhs.extensions == rhs.extensions &&
     lhs.source == rhs.source &&
-    lhs.dependentKeys == rhs.dependentKeys
+    lhs.dependentKeys == rhs.dependentKeys &&
+    lhs.metadata == rhs.metadata
   }
 }
 

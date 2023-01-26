@@ -7,7 +7,7 @@ public final class InMemoryNormalizedCache: NormalizedCache {
     self.records = records
   }
 
-  public func loadRecords(forKeys keys: Set<CacheKey>) throws -> [CacheKey: Record] {
+  public func loadRecords(forKeys keys: Set<CacheKey>) throws -> [CacheKey: RecordRow] {
     return keys.reduce(into: [:]) { result, key in
       result[key] = records[key]
     }

@@ -8,9 +8,9 @@ protocol GraphQLResultAccumulator: AnyObject {
   associatedtype ObjectResult
   associatedtype FinalResult
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) throws -> PartialResult
-  func acceptNullValue(info: FieldExecutionInfo) throws -> PartialResult
-  func acceptMissingValue(info: FieldExecutionInfo) throws -> PartialResult
+  func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
   func accept(list: [PartialResult], info: FieldExecutionInfo) throws -> PartialResult
   func accept(childObject: ObjectResult, info: FieldExecutionInfo) throws -> PartialResult
 
@@ -21,8 +21,12 @@ protocol GraphQLResultAccumulator: AnyObject {
 }
 
 func zip<Accumulator1: GraphQLResultAccumulator, Accumulator2: GraphQLResultAccumulator>(_ accumulator1: Accumulator1, _ accumulator2: Accumulator2) -> Zip2Accumulator<Accumulator1, Accumulator2> {
-  return Zip2Accumulator(accumulator1, accumulator2)
-}
+   return Zip2Accumulator(accumulator1, accumulator2)
+ }
+
+func zip<Accumulator1: GraphQLResultAccumulator, Accumulator2: GraphQLResultAccumulator, Accumulator3: GraphQLResultAccumulator, Accumulator4: GraphQLResultAccumulator>(_ accumulator1: Accumulator1, _ accumulator2: Accumulator2, _ accumulator3: Accumulator3, _ accumulator4: Accumulator4) -> Zip4Accumulator<Accumulator1, Accumulator2, Accumulator3, Accumulator4> {
+   return Zip4Accumulator(accumulator1, accumulator2, accumulator3, accumulator4)
+ }
 
 func zip<Accumulator1: GraphQLResultAccumulator, Accumulator2: GraphQLResultAccumulator, Accumulator3: GraphQLResultAccumulator>(_ accumulator1: Accumulator1, _ accumulator2: Accumulator2, _ accumulator3: Accumulator3) -> Zip3Accumulator<Accumulator1, Accumulator2, Accumulator3> {
   return Zip3Accumulator(accumulator1, accumulator2, accumulator3)
@@ -42,19 +46,27 @@ final class Zip2Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
     self.accumulator2 = accumulator2
   }
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.accept(scalar: scalar, info: info),
-            try accumulator2.accept(scalar: scalar, info: info))
+
+  func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult) {
+    return (
+           try accumulator1.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator2.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info)
+         )
+
   }
 
-  func acceptNullValue(info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.acceptNullValue(info: info),
-            try accumulator2.acceptNullValue(info: info))
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult) {
+    return (
+           try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info)
+         )
   }
 
-  func acceptMissingValue(info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.acceptMissingValue(info: info),
-            try accumulator2.acceptMissingValue(info: info))
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult) {
+    return (
+      try accumulator1.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator2.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info)
+    )
   }
 
   func accept(list: [PartialResult], info: FieldExecutionInfo) throws -> PartialResult {
@@ -104,22 +116,30 @@ final class Zip3Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
     self.accumulator3 = accumulator3
   }
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.accept(scalar: scalar, info: info),
-            try accumulator2.accept(scalar: scalar, info: info),
-            try accumulator3.accept(scalar: scalar, info: info))
+
+  func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult) {
+    return (
+           try accumulator1.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator2.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator3.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info)
+         )
   }
 
-  func acceptNullValue(info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.acceptNullValue(info: info),
-            try accumulator2.acceptNullValue(info: info),
-            try accumulator3.acceptNullValue(info: info))
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult) {
+    return (
+           try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+           try accumulator3.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info)
+         )
+
   }
 
-  func acceptMissingValue(info: FieldExecutionInfo) throws -> PartialResult {
-    return (try accumulator1.acceptMissingValue(info: info),
-            try accumulator2.acceptMissingValue(info: info),
-            try accumulator3.acceptMissingValue(info: info))
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult) {
+    return (
+      try accumulator1.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator2.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator3.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info)
+    )
   }
 
   func accept(list: [PartialResult], info: FieldExecutionInfo) throws -> PartialResult {
@@ -154,3 +174,101 @@ final class Zip3Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
             try accumulator3.finish(rootValue: rootValue.2, info: info))
   }
 }
+
+final class Zip4Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2: GraphQLResultAccumulator, Accumulator3: GraphQLResultAccumulator, Accumulator4: GraphQLResultAccumulator>: GraphQLResultAccumulator {
+
+   typealias PartialResult = (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult, Accumulator4.PartialResult)
+   typealias FieldEntry = (Accumulator1.FieldEntry, Accumulator2.FieldEntry, Accumulator3.FieldEntry, Accumulator4.FieldEntry)
+   typealias ObjectResult = (Accumulator1.ObjectResult, Accumulator2.ObjectResult, Accumulator3.ObjectResult, Accumulator4.ObjectResult)
+   typealias FinalResult = (Accumulator1.FinalResult, Accumulator2.FinalResult, Accumulator3.FinalResult, Accumulator4.FinalResult)
+
+   private let accumulator1: Accumulator1
+   private let accumulator2: Accumulator2
+   private let accumulator3: Accumulator3
+   private let accumulator4: Accumulator4
+
+
+   fileprivate init(_ accumulator1: Accumulator1,
+                    _ accumulator2: Accumulator2,
+                    _ accumulator3: Accumulator3,
+                    _ accumulator4: Accumulator4) {
+     self.accumulator1 = accumulator1
+     self.accumulator2 = accumulator2
+     self.accumulator3 = accumulator3
+     self.accumulator4 = accumulator4
+   }
+
+   func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+     return (
+       try accumulator1.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator2.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator3.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator4.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info)
+     )
+   }
+
+   func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+     return (
+       try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator3.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+       try accumulator4.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info)
+     )
+   }
+
+   func accept(list: [PartialResult], info: FieldExecutionInfo) throws -> PartialResult {
+     let (list1, list2, list3, list4) = unzip(list)
+     return (
+       try accumulator1.accept(list: list1, info: info),
+       try accumulator2.accept(list: list2, info: info),
+       try accumulator3.accept(list: list3, info: info),
+       try accumulator4.accept(list: list4, info: info)
+     )
+   }
+
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult, Accumulator4.PartialResult) {
+    return (
+      try accumulator1.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator2.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator3.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator4.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: info)
+    )
+  }
+
+  func accept(fieldEntry: PartialResult, info: FieldExecutionInfo) throws -> FieldEntry? {
+    return (
+      try accumulator1.accept(fieldEntry: fieldEntry.0, info: info),
+      try accumulator2.accept(fieldEntry: fieldEntry.1, info: info),
+      try accumulator3.accept(fieldEntry: fieldEntry.2, info: info),
+      try accumulator4.accept(fieldEntry: fieldEntry.3, info: info)
+
+    ) as? (Accumulator1.FieldEntry, Accumulator2.FieldEntry, Accumulator3.FieldEntry, Accumulator4.FieldEntry)
+  }
+
+   func accept(fieldEntries: [FieldEntry], info: ObjectExecutionInfo) throws -> ObjectResult {
+     let (fieldEntries1, fieldEntries2, fieldEntries3, fieldEntries4) = unzip(fieldEntries)
+     return (
+       try accumulator1.accept(fieldEntries: fieldEntries1, info: info),
+       try accumulator2.accept(fieldEntries: fieldEntries2, info: info),
+       try accumulator3.accept(fieldEntries: fieldEntries3, info: info),
+       try accumulator4.accept(fieldEntries: fieldEntries4, info: info)
+     )
+   }
+
+  func accept(childObject: ObjectResult, info: FieldExecutionInfo) throws -> PartialResult {
+    return (try accumulator1.accept(childObject: childObject.0, info: info),
+            try accumulator2.accept(childObject: childObject.1, info: info),
+            try accumulator3.accept(childObject: childObject.2, info: info),
+            try accumulator4.accept(childObject: childObject.3, info: info)
+    )
+  }
+
+   func finish(rootValue: ObjectResult, info: ObjectExecutionInfo) throws -> FinalResult {
+     return (
+       try accumulator1.finish(rootValue: rootValue.0, info: info),
+       try accumulator2.finish(rootValue: rootValue.1, info: info),
+       try accumulator3.finish(rootValue: rootValue.2, info: info),
+       try accumulator4.finish(rootValue: rootValue.3, info: info)
+     )
+   }
+ }

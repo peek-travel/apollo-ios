@@ -9,7 +9,7 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
   private static let executor: GraphQLExecutor = {
     let executor = GraphQLExecutor { object, info in
-      return object[info.responseKeyForField]
+      return (object[info.responseKeyForField], Date())
     }
 
     executor.shouldComputeCachePath = true
@@ -24,6 +24,7 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
     return try GraphQLExecutor_ResultNormalizer_FromResponse_Tests.executor.execute(
       selectionSet: selectionSet,
       on: object,
+      firstReceivedAt: Date(),
       withRootCacheReference: CacheReference.RootQuery,
       variables: variables,
       accumulator: GraphQLResultNormalizer()
@@ -52,12 +53,11 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // when
     let records = try normalizeRecords(GivenSelectionSet.self, from: object)
-
     // then
-    XCTAssertEqual(records["QUERY_ROOT"]?["hero"] as? CacheReference,
+    XCTAssertEqual(records["QUERY_ROOT"]?.record["hero"] as? CacheReference,
                    CacheReference("QUERY_ROOT.hero"))
     
-    let hero = try XCTUnwrap(records["QUERY_ROOT.hero"])
+    let hero = try XCTUnwrap(records["QUERY_ROOT.hero"]?.record)
     XCTAssertEqual(hero["name"] as? String, "R2-D2")
   }
   
@@ -85,11 +85,11 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
     let records = try normalizeRecords(GivenSelectionSet.self, with: variables, from: object)
 
     // then
-    XCTAssertEqual(records["QUERY_ROOT"]?["hero(episode:JEDI)"] as? CacheReference,
+    XCTAssertEqual(records["QUERY_ROOT"]?.record["hero(episode:JEDI)"] as? CacheReference,
                    CacheReference("QUERY_ROOT.hero(episode:JEDI)"))
     
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero(episode:JEDI)"])
-    XCTAssertEqual(hero["name"] as? String, "R2-D2")
+    XCTAssertEqual(hero.record["name"] as? String, "R2-D2")
   }
 
   func test__execute__givenObjectWithNoCacheKey_forFieldWithEnumArgument_normalizesRecordToPathFromQueryRootIncludingArgument() throws {
@@ -122,11 +122,11 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
     let records = try normalizeRecords(GivenSelectionSet.self, with: variables, from: object)
 
     // then
-    XCTAssertEqual(records["QUERY_ROOT"]?["hero(episode:EMPIRE)"] as? CacheReference,
+    XCTAssertEqual(records["QUERY_ROOT"]?.record["hero(episode:EMPIRE)"] as? CacheReference,
                    CacheReference("QUERY_ROOT.hero(episode:EMPIRE)"))
 
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero(episode:EMPIRE)"])
-    XCTAssertEqual(hero["name"] as? String, "R2-D2")
+    XCTAssertEqual(hero.record["name"] as? String, "R2-D2")
   }
 
   func test__execute__givenObjectWithNoCacheKey_andNestedArrayOfObjectsWithNoCacheKey_normalizesRecordsToPathsFromQueryRoot() throws {
@@ -166,18 +166,18 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
     let records = try normalizeRecords(GivenSelectionSet.self, from: object)
 
     // then
-    XCTAssertEqual(records["QUERY_ROOT"]?["hero"] as? CacheReference,
+    XCTAssertEqual(records["QUERY_ROOT"]?.record["hero"] as? CacheReference,
                    CacheReference("QUERY_ROOT.hero"))
     
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero"])
-    XCTAssertEqual(hero["name"] as? String, "R2-D2")
-    XCTAssertEqual(hero["friends"] as? [CacheReference],
+    XCTAssertEqual(hero.record["name"] as? String, "R2-D2")
+    XCTAssertEqual(hero.record["friends"] as? [CacheReference],
                    [CacheReference("QUERY_ROOT.hero.friends.0"),
                     CacheReference("QUERY_ROOT.hero.friends.1"),
                     CacheReference("QUERY_ROOT.hero.friends.2")])
     
     let luke = try XCTUnwrap(records["QUERY_ROOT.hero.friends.0"])
-    XCTAssertEqual(luke["name"] as? String, "Luke Skywalker")
+    XCTAssertEqual(luke.record["name"] as? String, "Luke Skywalker")
   }
 
   func test__execute__givenObjectWithCacheKey_andNestedArrayOfObjectsWithCacheKey_normalizesRecordsToIndividualReferences() throws {
@@ -222,24 +222,24 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
     let records = try normalizeRecords(GivenSelectionSet.self, from: object)
 
     // then
-    XCTAssertEqual(records["QUERY_ROOT"]?["hero"] as? CacheReference,
+    XCTAssertEqual(records["QUERY_ROOT"]?.record["hero"] as? CacheReference,
                    CacheReference("Droid:2001"))
 
     let hero = try XCTUnwrap(records["Droid:2001"])
-    XCTAssertEqual(hero["name"] as? String, "R2-D2")
-    XCTAssertEqual(hero["friends"] as? [CacheReference],
+    XCTAssertEqual(hero.record["name"] as? String, "R2-D2")
+    XCTAssertEqual(hero.record["friends"] as? [CacheReference],
                    [CacheReference("Human:1000"),
                     CacheReference("Human:1002"),
                     CacheReference("Human:1003")])
 
     let luke = try XCTUnwrap(records["Human:1000"])
-    XCTAssertEqual(luke["name"] as? String, "Luke Skywalker")
+    XCTAssertEqual(luke.record["name"] as? String, "Luke Skywalker")
 
     let han = try XCTUnwrap(records["Human:1002"])
-    XCTAssertEqual(han["name"] as? String, "Han Solo")
+    XCTAssertEqual(han.record["name"] as? String, "Han Solo")
 
     let leia = try XCTUnwrap(records["Human:1003"])
-    XCTAssertEqual(leia["name"] as? String, "Leia Organa")
+    XCTAssertEqual(leia.record["name"] as? String, "Leia Organa")
   }
   
   func test__execute__givenFieldForObjectWithNoCacheKey_andAliasedFieldForSameFieldName_normalizesRecordsForBothFieldsIntoOneRecord() throws {
@@ -274,9 +274,9 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // then
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero"])
-    XCTAssertEqual(hero["__typename"] as? String, "Droid")
-    XCTAssertEqual(hero["name"] as? String, "R2-D2")
-    XCTAssertEqual(hero["catchphrase"] as? String, "Beeeeeeeeeeeeeep")
+    XCTAssertEqual(hero.record["__typename"] as? String, "Droid")
+    XCTAssertEqual(hero.record["name"] as? String, "R2-D2")
+    XCTAssertEqual(hero.record["catchphrase"] as? String, "Beeeeeeeeeeeeeep")
   }
 
   func test__execute__givenDifferentAliasedFieldsOnTwoTypeCasesWithSameAlias_givenIsFirstType_hasRecordWithFieldValueUsingNonaliasedFieldName() throws {
@@ -331,9 +331,9 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // then
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero"])
-    XCTAssertEqual(hero["name"] as? String, "Han Solo")
-    XCTAssertNil(hero["property"])
-    XCTAssertNil(hero["primaryFunction"])
+    XCTAssertEqual(hero.record["name"] as? String, "Han Solo")
+    XCTAssertNil(hero.record["property"])
+    XCTAssertNil(hero.record["primaryFunction"])
   }
 
   func test__execute__givenDifferentAliasedFieldsOnTwoTypeCasesWithSameAlias_givenIsSecondType_hasRecordWithFieldValueUsingNonaliasedFieldName() throws {
@@ -389,9 +389,9 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // then
     let hero = try XCTUnwrap(records["QUERY_ROOT.hero"])
-    XCTAssertEqual(hero["primaryFunction"] as? String, "Astromech")
-    XCTAssertNil(hero["property"])
-    XCTAssertNil(hero["name"])
+    XCTAssertEqual(hero.record["primaryFunction"] as? String, "Astromech")
+    XCTAssertNil(hero.record["property"])
+    XCTAssertNil(hero.record["name"])
   }
 
   func test__execute__givenSameFieldWithDifferentArgumentValueOnSameNestedFieldOnTwoTypeCases_givenIsFirstType_hasRecordForFieldNameWithFirstTypesArgument() throws {
@@ -461,9 +461,9 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // then
     let han = try XCTUnwrap(records["QUERY_ROOT.hero.friend"])
-    XCTAssertEqual(han["height(unit:FOOT)"] as? Double, 5.905512)
-    XCTAssertNil(han["height(unit:METER)"])
-    XCTAssertNil(han["height"])
+    XCTAssertEqual(han.record["height(unit:FOOT)"] as? Double, 5.905512)
+    XCTAssertNil(han.record["height(unit:METER)"])
+    XCTAssertNil(han.record["height"])
   }
 
   func test__execute__givenSameFieldWithDifferentArgumentValueOnSameNestedFieldOnTwoTypeCases_givenIsSecondType_hasRecordForFieldNameWithFirstTypesArgument() throws {
@@ -534,8 +534,8 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
 
     // then
     let luke = try XCTUnwrap(records["QUERY_ROOT.hero.friend"])
-    XCTAssertEqual(luke["height(unit:METER)"] as? Double, 1.72)
-    XCTAssertNil(luke["height(unit:FOOT)"])
-    XCTAssertNil(luke["height"])
+    XCTAssertEqual(luke.record["height(unit:METER)"] as? Double, 1.72)
+    XCTAssertNil(luke.record["height(unit:FOOT)"])
+    XCTAssertNil(luke.record["height"])
   }
 }

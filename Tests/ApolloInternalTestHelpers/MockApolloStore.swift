@@ -15,7 +15,7 @@ public class NoCache: NormalizedCache {
 
   public init() { }
 
-  public func loadRecords(forKeys keys: Set<String>) throws -> [String : Record] {
+  public func loadRecords(forKeys keys: Set<String>) throws -> [String : RecordRow] {
     return [:]
   }
 

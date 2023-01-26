@@ -9,6 +9,11 @@ public protocol TestCacheProvider: AnyObject {
 }
 
 public class InMemoryTestCacheProvider: TestCacheProvider {
+  public static func withCache(initialRecords: Apollo.RecordSet?, execute test: (Apollo.NormalizedCache) throws -> ()) rethrows {
+    let cache = InMemoryNormalizedCache(records: initialRecords ?? [:])
+    try test(cache)
+  }
+
   public static func makeNormalizedCache(_ completionHandler: (Result<TestDependency<NormalizedCache>, Error>) -> ()) {
     let cache = InMemoryNormalizedCache()
     completionHandler(.success((cache, nil)))
