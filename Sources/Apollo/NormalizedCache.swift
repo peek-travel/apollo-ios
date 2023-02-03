@@ -7,7 +7,7 @@ public protocol NormalizedCache: AnyObject {
   /// - Parameters:
   ///   - key: The cache keys to load data for
   /// - Returns: A dictionary of cache keys to records containing the records that have been found.
-  func loadRecords(forKeys keys: Set<CacheKey>) throws -> [CacheKey: Record]
+  func loadRecords(forKeys keys: Set<CacheKey>) throws -> [CacheKey: RecordRow]
     
   /// Merges a set of records into the cache.
   ///

@@ -9,7 +9,7 @@ class SQLiteDotSwiftDatabaseBehaviorTests: XCTestCase {
     let sqliteFileURL = SQLiteTestCacheProvider.temporarySQLiteFileURL()
     let db = try! SQLiteDotSwiftDatabase(fileURL: sqliteFileURL)
 
-    try! db.createRecordsTableIfNeeded()
+    try! db.setUpDatabase()
     try! db.addOrUpdateRecordString("record", for: "key")
 
     var rows = [DatabaseRow]()

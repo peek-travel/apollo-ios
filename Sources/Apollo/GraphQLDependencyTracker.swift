@@ -3,17 +3,18 @@ import ApolloAPI
 #endif
 
 final class GraphQLDependencyTracker: GraphQLResultAccumulator {
+
   private var dependentKeys: Set<CacheKey> = Set()
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) {
+  func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) {
     dependentKeys.insert(info.cachePath.joined)
   }
 
-  func acceptNullValue(info: FieldExecutionInfo) {
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) {
     dependentKeys.insert(info.cachePath.joined)
   }
 
-  func acceptMissingValue(info: FieldExecutionInfo) throws -> () {
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> () {
     dependentKeys.insert(info.cachePath.joined)
   }
 

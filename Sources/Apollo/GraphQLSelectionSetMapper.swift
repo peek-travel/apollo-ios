@@ -18,7 +18,7 @@ final class GraphQLSelectionSetMapper<SelectionSet: AnySelectionSet>: GraphQLRes
     self.allowMissingValuesForOptionalFields = allowMissingValuesForOptionalFields
   }
 
-  func accept(scalar: JSONValue, info: FieldExecutionInfo) throws -> JSONValue? {
+  func accept(scalar: JSONValue, firstReceivedAt: Date,  info: FieldExecutionInfo) throws -> JSONValue? {
     switch info.field.type.namedType {
     case let .scalar(decodable as any JSONDecodable.Type),
       let .customScalar(decodable as any JSONDecodable.Type):
@@ -30,11 +30,11 @@ final class GraphQLSelectionSetMapper<SelectionSet: AnySelectionSet>: GraphQLRes
     }
   }
 
-  func acceptNullValue(info: FieldExecutionInfo) -> JSONValue? {
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> JSONValue? {
     return stripNullValues ? nil : NSNull()
   }
 
-  func acceptMissingValue(info: FieldExecutionInfo) throws -> JSONValue? {
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> JSONValue? {
     guard allowMissingValuesForOptionalFields && info.field.type.isNullable else {
       throw JSONDecodingError.missingValue
     }

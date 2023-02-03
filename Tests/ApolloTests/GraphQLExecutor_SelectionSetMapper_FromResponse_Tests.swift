@@ -11,7 +11,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
 
   private static let executor: GraphQLExecutor = {
     let executor = GraphQLExecutor { object, info in
-      return object[info.responseKeyForField]
+      return (object[info.responseKeyForField], Date())
     }
     executor.shouldComputeCachePath = false
     return executor
@@ -24,7 +24,8 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
   ) throws -> T {
     return try GraphQLExecutor_SelectionSetMapper_FromResponse_Tests.executor.execute(
       selectionSet: selectionSet,
-      on: object,      
+      on: object,
+      firstReceivedAt: Date(),      
       variables: variables,
       accumulator: GraphQLSelectionSetMapper<T>(stripNullValues: true)
     )

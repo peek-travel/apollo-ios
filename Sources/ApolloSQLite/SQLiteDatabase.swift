@@ -6,6 +6,7 @@ import Apollo
 public struct DatabaseRow {
   let cacheKey: CacheKey
   let storedInfo: String
+  let lastReceivedAt: Int64
 }
 
 public protocol SQLiteDatabase {
@@ -23,6 +24,12 @@ public protocol SQLiteDatabase {
   func deleteRecords(matching pattern: CacheKey) throws
   
   func clearDatabase(shouldVacuumOnClear: Bool) throws
+
+  func setUpDatabase() throws
+
+  func insert(_ key: CacheKey, row: RecordRow?, serializedRecord: String) throws
+
+  func readSchemaVersion() throws -> Int64?
   
 }
 

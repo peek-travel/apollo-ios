@@ -24,11 +24,12 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
     let accumulator = zip(
       GraphQLSelectionSetMapper<Data>(),
       GraphQLResultNormalizer(),
-      GraphQLDependencyTracker()
+      GraphQLDependencyTracker(),
+      GraphQLFirstReceivedAtTracker()
     )
 
     let executionResult = try execute(with: accumulator, computeCachePaths: true)
-    let result = makeResult(data: executionResult?.0, dependentKeys: executionResult?.2)
+    let result = makeResult(data: executionResult?.0, dependentKeys: executionResult?.2, resultContext: executionResult?.3 ?? GraphQLResultMetadata())
     return (result, executionResult?.1)
   }
 
@@ -41,19 +42,20 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
     }
 
     let executor = GraphQLExecutor { object, info in
-      return object[info.responseKeyForField]
+      return (object[info.responseKeyForField], Date())
     }
 
     executor.shouldComputeCachePath = computeCachePaths
 
     return try executor.execute(selectionSet: Data.self,
                                 on: dataEntry,
+                                firstReceivedAt: Date(),
                                 withRootCacheReference: rootKey,
                                 variables: variables,
                                 accumulator: accumulator)
   }
 
-  private func makeResult(data: Data?, dependentKeys: Set<CacheKey>?) -> GraphQLResult<Data> {
+  private func makeResult(data: Data?, dependentKeys: Set<CacheKey>?, resultContext: GraphQLResultMetadata) -> GraphQLResult<Data> {
     let errors = self.parseErrors()
     let extensions = body["extensions"] as? JSONObject
 
@@ -61,7 +63,8 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
                          extensions: extensions,
                          errors: errors,
                          source: .server,
-                         dependentKeys: dependentKeys)
+                         dependentKeys: dependentKeys,
+                         metadata: resultContext)
   }
 
   private func parseErrors() -> [GraphQLError]? {
@@ -79,7 +82,7 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
   public func parseResultFast() throws -> GraphQLResult<Data>  {
     let accumulator = GraphQLSelectionSetMapper<Data>()
     let data = try execute(with: accumulator, computeCachePaths: false)
-    return makeResult(data: data, dependentKeys: nil)    
+    return makeResult(data: data, dependentKeys: nil, resultContext: GraphQLResultMetadata())
   }
 }
 

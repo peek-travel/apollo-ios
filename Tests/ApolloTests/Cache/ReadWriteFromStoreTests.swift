@@ -57,8 +57,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
     store.withinReadTransaction({ transaction in
       let data = try transaction.read(query: query)
 
-      expect(data.hero?.__typename).to(equal("Droid"))
-      expect(data.hero?.name).to(equal("R2-D2"))
+      expect(data.0.hero?.__typename).to(equal("Droid"))
+      expect(data.0.hero?.name).to(equal("R2-D2"))
     }, completion: { result in
       defer { readCompletedExpectation.fulfill() }
       XCTAssertSuccessResult(result)
@@ -130,8 +130,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
         let data = try transaction.read(query: query)
 
         // then
-        expect(data.hero?.__typename).to(equal("Droid"))
-        expect(data.hero?.name).to(equal("R2-D2"))
+        expect(data.0.hero?.__typename).to(equal("Droid"))
+        expect(data.0.hero?.name).to(equal("R2-D2"))
 
       }, completion: { result in
         defer { readCompletedExpectation.fulfill() }
@@ -238,8 +238,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
     store.withinReadTransaction({ transaction in
       let data = try transaction.read(query: query)
 
-      XCTAssertEqual(data.hero.name, "R2-D2")
-      let friendsNames: [String] = data.hero.friends.compactMap { $0.name }
+      XCTAssertEqual(data.0.hero.name, "R2-D2")
+      let friendsNames: [String] = data.0.hero.friends.compactMap { $0.name }
       XCTAssertEqual(friendsNames, ["Luke Skywalker", "Han Solo", "Leia Organa"])
     }, completion: { result in
       defer { readCompletedExpectation.fulfill() }
@@ -296,8 +296,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
         withKey: "2001"
       )
 
-      XCTAssertEqual(r2d2.name, "R2-D2")
-      XCTAssertEqual(r2d2.asDroid?.primaryFunction, "Protocol")
+      XCTAssertEqual(r2d2.0.name, "R2-D2")
+      XCTAssertEqual(r2d2.0.asDroid?.primaryFunction, "Protocol")
     }, completion: { result in
       defer { readCompletedExpectation.fulfill() }
       XCTAssertSuccessResult(result)
@@ -1530,7 +1530,7 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
         withKey: "QUERY_ROOT"
       )
 
-      XCTAssertEqual(data.hero.name, "Artoo")
+      XCTAssertEqual(data.0.hero.name, "Artoo")
 
     }, completion: { result in
       defer { readAfterUpdateCompletedExpectation.fulfill() }
@@ -1953,8 +1953,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
       query.__variables = ["episode": "JEDI"]
       let data = try transaction.read(query: query)
 
-      XCTAssertEqual(data.hero.__typename, "Human")
-      XCTAssertEqual(data.hero.name, "Luke Skywalker")
+      XCTAssertEqual(data.0.hero.__typename, "Human")
+      XCTAssertEqual(data.0.hero.name, "Luke Skywalker")
 
     }, completion: { jediResult in
       defer { readHeroJediAfterRemoveCompletedExpectation.fulfill() }
@@ -2020,8 +2020,8 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
 
       let data = try transaction.read(query: query)
 
-      expect(data.hero?.__typename).to(equal("Droid"))
-      expect(data.hero?.name).to(equal("R2-D2"))
+      expect(data.0.hero?.__typename).to(equal("Droid"))
+      expect(data.0.hero?.name).to(equal("R2-D2"))
 
     }, completion: { result in
       defer { readCompletedExpectation.fulfill() }
@@ -2030,6 +2030,92 @@ class ReadWriteFromStoreTests: XCTestCase, CacheDependentTesting, StoreLoading {
     })
 
     self.wait(for: [readCompletedExpectation], timeout: Self.defaultWaitTimeout)
+  }
+
+  func testReceivedAtAfterUpdateQuery() throws {
+
+    // given
+    struct GivenSelectionSet: MockMutableRootSelectionSet {
+      public var __data: DataDict = DataDict([:], variables: nil)
+      init(data: DataDict) { __data = data }
+
+      static var __selections: [Selection] { [
+        .field("hero", Hero.self)
+      ]}
+
+      var hero: Hero {
+        get { __data["hero"] }
+        set { __data["hero"] = newValue }
+      }
+
+      struct Hero: MockMutableRootSelectionSet {
+        public var __data: DataDict = DataDict([:], variables: nil)
+        init(data: DataDict) { __data = data }
+
+        static var __selections: [Selection] { [
+          .field("name", String.self)
+        ]}
+
+        var name: String {
+          get { __data["name"] }
+          set { __data["name"] = newValue }
+        }
+      }
+    }
+
+    let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
+    let initialRecords = RecordSet([
+      "QUERY_ROOT": (["hero": CacheReference("QUERY_ROOT.hero")], yesterday),
+      "QUERY_ROOT.hero": (["__typename": "Droid", "name": "R2-D2"], yesterday)
+    ])
+    let cacheMutation = MockLocalCacheMutation<GivenSelectionSet>()
+    mergeRecordsIntoCache(initialRecords)
+
+    runActivity("update mutation") { _ in
+
+      let expectation = self.expectation(description: "transaction'd")
+      store.withinReadWriteTransaction({ transaction in
+        try transaction.update(cacheMutation) { data in
+          data.hero.name = "Artoo"
+        }
+      }, completion: { result in
+        defer { expectation.fulfill() }
+        XCTAssertSuccessResult(result)
+      })
+      self.wait(for: [expectation], timeout: Self.defaultWaitTimeout)
+
+      let query = MockQuery<GivenSelectionSet>()
+      loadFromStore(operation: query) { result in
+        switch result {
+        case let .success(success):
+          // the query age is that of the oldest row read, so still yesterday
+          XCTAssertEqual(
+            Calendar.current.compare(yesterday, to: success.metadata.maxAge, toGranularity: .minute),
+            .orderedSame
+          )
+        case let .failure(error):
+          XCTFail("Unexpected error: \(error)")
+        }
+
+      }
+    }
+
+    runActivity("read object") { _ in
+      // verify that the age of the modified row is from just now
+      let cacheReadExpectation = self.expectation(description: "cacheReadExpectation")
+      store.withinReadTransaction ({ transaction in
+        let object = try transaction.readObject(ofType: GivenSelectionSet.Hero.self, withKey: "QUERY_ROOT.hero")
+        XCTAssertTrue(object.0.name == "Artoo")
+        XCTAssertEqual(
+          Calendar.current.compare(Date(), to: object.1.maxAge, toGranularity: .minute),
+          .orderedSame
+        )
+      }, completion: { result in
+        defer { cacheReadExpectation.fulfill() }
+        XCTAssertSuccessResult(result)
+      })
+      self.wait(for: [cacheReadExpectation], timeout: Self.defaultWaitTimeout)
+    }
   }
 
 }

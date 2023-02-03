@@ -165,13 +165,16 @@ public class ApolloStore {
     callbackQueue: DispatchQueue? = nil,
     resultHandler: @escaping GraphQLResultHandler<Operation.Data>
   ) {
+
     withinReadTransaction({ transaction in
-      let (data, dependentKeys) = try transaction.readObject(
+      let firstReceivedTracker = GraphQLFirstReceivedAtTracker()
+
+      let (data, dependentKeys, resultContext) = try transaction.readObject(
         ofType: Operation.Data.self,
         withKey: CacheReference.rootCacheReference(for: Operation.operationType).key,
         variables: operation.__variables,
         accumulator: zip(GraphQLSelectionSetMapper<Operation.Data>(),
-                         GraphQLDependencyTracker())
+                         GraphQLDependencyTracker(), firstReceivedTracker)
       )
       
       return GraphQLResult(
@@ -179,7 +182,8 @@ public class ApolloStore {
         extensions: nil,
         errors: nil,
         source:.cache,
-        dependentKeys: dependentKeys
+        dependentKeys: dependentKeys,
+        metadata: resultContext
       )
     }, callbackQueue: callbackQueue, completion: resultHandler)
   }
@@ -191,10 +195,11 @@ public class ApolloStore {
   public class ReadTransaction {
     fileprivate let cache: NormalizedCache
 
-    fileprivate lazy var loader: DataLoader<CacheKey, Record> = DataLoader(self.cache.loadRecords)
+    fileprivate lazy var loader: DataLoader<CacheKey, RecordRow> = DataLoader(self.cache.loadRecords)
     fileprivate lazy var executor = GraphQLExecutor { object, info in
-      return object[info.cacheKeyForField]
+      return (object[info.cacheKeyForField], Date())
     } resolveReference: { [weak self] reference in
+
       guard let self = self else {
         return .immediate(.failure(ApolloStore.Error.notWithinReadTransaction))
       }
@@ -205,7 +210,7 @@ public class ApolloStore {
       self.cache = store.cache
     }
 
-    public func read<Query: GraphQLQuery>(query: Query) throws -> Query.Data {
+    public func read<Query: GraphQLQuery>(query: Query) throws -> (Query.Data, GraphQLResultMetadata) {
       return try readObject(
         ofType: Query.Data.self,
         withKey: CacheReference.rootCacheReference(for: Query.operationType).key,
@@ -217,12 +222,14 @@ public class ApolloStore {
       ofType type: SelectionSet.Type,
       withKey key: CacheKey,
       variables: GraphQLOperation.Variables? = nil
-    ) throws -> SelectionSet {
+    ) throws -> (SelectionSet, GraphQLResultMetadata) {
+      let firstReceivedTracker = GraphQLFirstReceivedAtTracker()
+      let mapper = GraphQLSelectionSetMapper<SelectionSet>()
       return try self.readObject(
         ofType: type,
         withKey: key,
         variables: variables,
-        accumulator: GraphQLSelectionSetMapper<SelectionSet>()
+        accumulator: zip(mapper, firstReceivedTracker)
       )
     }
 
@@ -236,17 +243,18 @@ public class ApolloStore {
 
       return try executor.execute(
         selectionSet: type,
-        on: object,
+        on: object.0,
+        firstReceivedAt: object.1,
         withRootCacheReference: CacheReference(key),
         variables: variables,
         accumulator: accumulator
       )
     }
     
-    fileprivate final func loadObject(forKey key: CacheKey) -> PossiblyDeferred<JSONObject> {
-      self.loader[key].map { record in
-        guard let record = record else { throw JSONDecodingError.missingValue }
-        return record.fields
+    fileprivate final func loadObject(forKey key: CacheKey) -> PossiblyDeferred<(JSONObject, Date)> {
+      return loader[key].map { row in
+        guard let row = row else { throw JSONDecodingError.missingValue }
+        return (row.record.fields, row.lastReceivedAt)
       }
     }
   }
@@ -308,12 +316,13 @@ public class ApolloStore {
     ) throws {
       let normalizer = GraphQLResultNormalizer()
       let executor = GraphQLExecutor { object, info in
-        return object[info.responseKeyForField]
+        return (object[info.responseKeyForField], Date())
       }
 
       let records = try executor.execute(
         selectionSet: SelectionSet.self,
         on: selectionSet.__data._data,
+        firstReceivedAt: Date(),
         withRootCacheReference: CacheReference(key),
         variables: variables,
         accumulator: normalizer

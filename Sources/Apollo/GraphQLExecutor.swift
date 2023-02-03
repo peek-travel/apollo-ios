@@ -4,14 +4,14 @@ import ApolloAPI
 #endif
 
 /// A field resolver is responsible for resolving a value for a field.
-typealias GraphQLFieldResolver = (_ object: JSONObject, _ info: FieldExecutionInfo) -> JSONValue?
+typealias GraphQLFieldResolver = (_ object: JSONObject, _ info: FieldExecutionInfo) -> (JSONValue?, Date)
 
 /// A reference resolver is responsible for resolving an object based on its key. These references are
 /// used in normalized records, and data for these objects has to be loaded from the cache for execution to continue.
 /// Because data may be loaded from a database, these loads are batched for performance reasons.
 /// By returning a `PossiblyDeferred` wrapper, we allow `ApolloStore` to use a `DataLoader` that
 /// will defer loading the next batch of records from the cache until they are needed.
-typealias ReferenceResolver = (CacheReference) -> PossiblyDeferred<JSONObject>
+typealias ReferenceResolver = (CacheReference) -> PossiblyDeferred<(JSONObject, Date)>
 
 struct ObjectExecutionInfo {
   let variables: GraphQLOperation.Variables?
@@ -173,6 +173,7 @@ final class GraphQLExecutor {
   func execute<Accumulator: GraphQLResultAccumulator>(
     selectionSet: RootSelectionSet.Type,
     on data: JSONObject,
+    firstReceivedAt: Date,
     withRootCacheReference root: CacheReference? = nil,
     variables: GraphQLOperation.Variables? = nil,
     accumulator: Accumulator
@@ -183,6 +184,7 @@ final class GraphQLExecutor {
 
     let rootValue = execute(selections: selectionSet.__selections,
                             on: data,
+                            firstReceivedAt: firstReceivedAt,
                             info: info,
                             accumulator: accumulator)
 
@@ -192,6 +194,7 @@ final class GraphQLExecutor {
   private func execute<Accumulator: GraphQLResultAccumulator>(
     selections: [Selection],
     on object: JSONObject,
+    firstReceivedAt: Date,
     info: ObjectExecutionInfo,
     accumulator: Accumulator
   ) -> PossiblyDeferred<Accumulator.ObjectResult> {
@@ -204,6 +207,7 @@ final class GraphQLExecutor {
       for (_, fields) in groupedFields {
         let fieldEntry = execute(fields: fields,
                                  on: object,
+                                 firstReceivedAt: firstReceivedAt,
                                  accumulator: accumulator)
         fieldEntries.append(fieldEntry)
       }
@@ -295,6 +299,7 @@ final class GraphQLExecutor {
   private func execute<Accumulator: GraphQLResultAccumulator>(
     fields: FieldExecutionInfo,
     on object: JSONObject,
+    firstReceivedAt: Date,
     accumulator: Accumulator
   ) -> PossiblyDeferred<Accumulator.FieldEntry?> {
     var fieldInfo = fields
@@ -311,6 +316,7 @@ final class GraphQLExecutor {
       fieldResolver(object, fieldInfo)
     }.flatMap {
       return self.complete(fields: fieldInfo,
+                           firstReveivedAt: min(firstReceivedAt, $1),
                            withValue: $0,
                            accumulator: accumulator)
     }.map {
@@ -326,11 +332,13 @@ final class GraphQLExecutor {
 
   private func complete<Accumulator: GraphQLResultAccumulator>(
     fields fieldInfo: FieldExecutionInfo,
+    firstReveivedAt: Date,
     withValue value: JSONValue?,
     accumulator: Accumulator
   ) -> PossiblyDeferred<Accumulator.PartialResult> {
     complete(fields: fieldInfo,
              withValue: value,
+             firstReceivedAt: firstReveivedAt,
              asType: fieldInfo.field.type,
              accumulator: accumulator)
   }
@@ -341,15 +349,16 @@ final class GraphQLExecutor {
   private func complete<Accumulator: GraphQLResultAccumulator>(
     fields fieldInfo: FieldExecutionInfo,
     withValue value: JSONValue?,
+    firstReceivedAt: Date,
     asType returnType: Selection.Field.OutputType,
     accumulator: Accumulator
   ) -> PossiblyDeferred<Accumulator.PartialResult> {
     guard let value else {
-      return PossiblyDeferred { try accumulator.acceptMissingValue(info: fieldInfo) }
+      return PossiblyDeferred { try accumulator.acceptMissingValue(firstReceivedAt: firstReceivedAt, info: fieldInfo) }
     }
 
     if value is NSNull && returnType.isNullable {
-      return PossiblyDeferred { try accumulator.acceptNullValue(info: fieldInfo) }
+      return PossiblyDeferred { try accumulator.acceptNullValue(firstReceivedAt: firstReceivedAt, info: fieldInfo) }
     }
 
     switch returnType {
@@ -359,11 +368,12 @@ final class GraphQLExecutor {
     case let .nonNull(innerType):
       return complete(fields: fieldInfo,
                       withValue: value,
+                      firstReceivedAt: firstReceivedAt,
                       asType: innerType,
                       accumulator: accumulator)
 
     case .scalar, .customScalar:
-      return PossiblyDeferred { try accumulator.accept(scalar: value, info: fieldInfo) }
+      return PossiblyDeferred { try accumulator.accept(scalar: value, firstReceivedAt: firstReceivedAt, info: fieldInfo) }
 
     case .list(let innerType):
       guard let array = value as? [JSONValue] else {
@@ -385,6 +395,7 @@ final class GraphQLExecutor {
           return self
             .complete(fields: elementFieldInfo,
                       withValue: element,
+                      firstReceivedAt: firstReceivedAt,
                       asType: innerType,
                       accumulator: accumulator)
             .mapError { error in
@@ -408,14 +419,16 @@ final class GraphQLExecutor {
 
         return resolveReference(reference).flatMap {
           self.complete(fields: fieldInfo,
-                        withValue: $0,
+                        withValue: $0.0,
+                        firstReceivedAt: firstReceivedAt,
                         asType: returnType,
-                        accumulator: accumulator)
+                         accumulator: accumulator)
         }
 
       case let object as JSONObject:
         return executeChildSelections(forObjectTypeFields: fieldInfo,
                                       onChildObject: object,
+                                      firstReceivedAt: firstReceivedAt,
                                       accumulator: accumulator)
 
       default:
@@ -427,6 +440,7 @@ final class GraphQLExecutor {
   private func executeChildSelections<Accumulator: GraphQLResultAccumulator>(
     forObjectTypeFields fieldInfo: FieldExecutionInfo,
     onChildObject object: JSONObject,
+    firstReceivedAt: Date,
     accumulator: Accumulator
   ) -> PossiblyDeferred<Accumulator.PartialResult> {
     let selections = fieldInfo.computeChildSelections()
@@ -441,6 +455,7 @@ final class GraphQLExecutor {
 
     return execute(selections: selections,
                    on: object,
+                   firstReceivedAt: firstReceivedAt,
                    info: childExecutionInfo,
                    accumulator: accumulator)
       .map { try accumulator.accept(childObject: $0, info: fieldInfo) }
