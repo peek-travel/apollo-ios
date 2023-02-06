@@ -1,7 +1,8 @@
 #if !COCOAPODS
 import ApolloAPI
-import Foundation
 #endif
+
+import Foundation
 
 protocol GraphQLResultAccumulator: AnyObject {
   associatedtype PartialResult
