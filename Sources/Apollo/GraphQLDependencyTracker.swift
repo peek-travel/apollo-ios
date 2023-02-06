@@ -1,7 +1,8 @@
 #if !COCOAPODS
 import ApolloAPI
-import Foundation
 #endif
+
+import Foundation
 
 final class GraphQLDependencyTracker: GraphQLResultAccumulator {
 

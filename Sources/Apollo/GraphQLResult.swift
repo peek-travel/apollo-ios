@@ -1,7 +1,8 @@
-import Foundation
 #if !COCOAPODS
 import ApolloAPI
 #endif
+
+import Foundation
 
 /// Metadata about the a returned result.
  public struct GraphQLResultMetadata {
