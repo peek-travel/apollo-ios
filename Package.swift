@@ -60,6 +60,7 @@ let package = Package(
       exclude: [
         "Info.plist",
         "Frontend/JavaScript",
+        "Frontend/auto_rollup.sh",
       ]),
     .target(
       name: "ApolloSQLite",
@@ -81,6 +82,7 @@ let package = Package(
     .target(
       name: "ApolloTestSupport",
       dependencies: [
+        "Apollo",
         "ApolloAPI"
       ],
       exclude: [

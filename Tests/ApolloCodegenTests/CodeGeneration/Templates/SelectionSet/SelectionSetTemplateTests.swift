@@ -37,8 +37,8 @@ class SelectionSetTemplateTests: XCTestCase {
     ir = try .mock(schema: schemaSDL, document: document)
     let operationDefinition = try XCTUnwrap(ir.compilationResult[operation: operationName])
     operation = ir.build(operation: operationDefinition)
-    let config = ApolloCodegenConfiguration.mock(
-      schemaName: "TestSchema",
+    let config = ApolloCodegen.ConfigurationContext(config: .mock(
+      schemaNamespace: "TestSchema",
       output: configOutput,
       options: .init(
         additionalInflectionRules: inflectionRules,
@@ -46,9 +46,17 @@ class SelectionSetTemplateTests: XCTestCase {
         cocoapodsCompatibleImportStatements: cocoapodsImportStatements,
         warningsOnDeprecatedUsage: warningsOnDeprecatedUsage
       )
+    ))
+    let mockTemplateRenderer = MockTemplateRenderer(
+      target: .operationFile,
+      template: "",
+      config: config
     )
     subject = SelectionSetTemplate(
-      config: ApolloCodegen.ConfigurationContext(config: config)
+      definition: .operation(self.operation),
+      generateInitializers: false,
+      config: config,
+      renderAccessControl: mockTemplateRenderer.accessControlModifier(for: .member)
     )
   }
 
@@ -266,6 +274,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [Apollo.Selection] { [
+        .field("__typename", String.self),
         .field("FieldName", String.self),
       ] }
     """
@@ -332,6 +341,53 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(actual).to(equalLineByLine(expected, atLine: 6, ignoringExtraLines: true))
+  }
+  
+  func test__render_selections__givenCustomRootTypes_doesNotGenerateTypenameField() throws {
+    // given
+    schemaSDL = """
+    schema {
+      query: RootQueryType
+      mutation: RootMutationType
+    }
+    
+    type RootQueryType {
+      allAnimals: [Animal!]
+    }
+    
+    type RootMutationType {
+      feedAnimal: Animal!
+    }
+
+    type Animal {
+      FieldName: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        FieldName
+      }
+    }
+    """
+
+    let expected = """
+      public static var __selections: [ApolloAPI.Selection] { [
+        .field("allAnimals", [AllAnimal]?.self),
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals = try XCTUnwrap(
+      operation[field: "query"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: allAnimals)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 7, ignoringExtraLines: true))
   }
 
   // MARK: Selections - Fields
@@ -406,6 +462,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", String.self),
         .field("string_optional", String?.self),
         .field("int", Int.self),
@@ -430,6 +487,45 @@ class SelectionSetTemplateTests: XCTestCase {
         .field("nestedList_optional_required_optional", [[String?]]?.self),
         .field("nestedList_optional_optional_required", [[String]?]?.self),
         .field("nestedList_optional_optional_optional", [[String?]?]?.self),
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: allAnimals)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 7, ignoringExtraLines: true))
+  }
+  
+  func test__render_selections__givenAllUppercase_generatesCorrectCasing() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    type Animal {
+      FIELDNAME: String
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        FIELDNAME
+      }
+    }
+    """
+
+    let expected = """
+      public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
+        .field("FIELDNAME", String?.self),
       ] }
     """
 
@@ -478,6 +574,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("custom", TestSchema.Custom.self),
         .field("custom_optional", TestSchema.Custom?.self),
         .field("custom_required_list", [TestSchema.Custom].self),
@@ -487,15 +584,15 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let tests: [ApolloCodegenConfiguration.FileOutput] = [
-      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil)),
-      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom")),
+      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .swiftPackageManager, operations: .inSchemaModule),
-      .mock(moduleType: .other, operations: .relative(subpath: nil)),
-      .mock(moduleType: .other, operations: .absolute(path: "custom")),
+      .mock(moduleType: .other, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .other, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .other, operations: .inSchemaModule),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil)),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom")),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .inSchemaModule)
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom", accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget", accessModifier: .public), operations: .inSchemaModule)
     ]
 
     for test in tests {
@@ -550,6 +647,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("testEnum", GraphQLEnum<TestSchema.TestEnum>.self),
         .field("testEnumOptional", GraphQLEnum<TestSchema.TestEnumOptional>?.self),
         .field("lowercaseEnum", GraphQLEnum<TestSchema.LowercaseEnum>.self),
@@ -557,15 +655,15 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let tests: [ApolloCodegenConfiguration.FileOutput] = [
-      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil)),
-      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom")),
+      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .swiftPackageManager, operations: .inSchemaModule),
-      .mock(moduleType: .other, operations: .relative(subpath: nil)),
-      .mock(moduleType: .other, operations: .absolute(path: "custom")),
+      .mock(moduleType: .other, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .other, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .other, operations: .inSchemaModule),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil)),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom")),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .inSchemaModule)
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom", accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget", accessModifier: .public), operations: .inSchemaModule)
     ]
 
     for test in tests {
@@ -604,6 +702,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("FieldName", String.self),
       ] }
     """
@@ -642,6 +741,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", alias: "aliased", String.self),
       ] }
     """
@@ -691,6 +791,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("predator", Predator.self),
         .field("lowercaseType", LowercaseType.self),
       ] }
@@ -751,6 +852,7 @@ class SelectionSetTemplateTests: XCTestCase {
       do: String!
       else: String!
       fallthrough: String!
+      for: String!
       guard: String!
       if: String!
       in: String!
@@ -810,6 +912,7 @@ class SelectionSetTemplateTests: XCTestCase {
         do
         else
         fallthrough
+        for
         guard
         if
         in
@@ -836,6 +939,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("associatedtype", String.self),
         .field("class", String.self),
         .field("deinit", String.self),
@@ -869,6 +973,7 @@ class SelectionSetTemplateTests: XCTestCase {
         .field("do", String.self),
         .field("else", String.self),
         .field("fallthrough", String.self),
+        .field("for", String.self),
         .field("guard", String.self),
         .field("if", String.self),
         .field("in", String.self),
@@ -933,6 +1038,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("_oneUnderscore", _OneUnderscore.self),
         .field("__twoUnderscore", __TwoUnderscore.self),
       ] }
@@ -975,6 +1081,7 @@ class SelectionSetTemplateTests: XCTestCase {
       protocol: Animal!
       type: Animal!
       species: String!
+      _: Animal!
     }
     """
 
@@ -1029,12 +1136,16 @@ class SelectionSetTemplateTests: XCTestCase {
         type {
           species
         }
+        _ {
+          species
+        }
       }
     }
     """
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("self", Self_SelectionSet.self),
         .field("parentType", ParentType_SelectionSet.self),
         .field("dataDict", DataDict_SelectionSet.self),
@@ -1051,6 +1162,7 @@ class SelectionSetTemplateTests: XCTestCase {
         .field("any", Any_SelectionSet.self),
         .field("protocol", Protocol_SelectionSet.self),
         .field("type", Type_SelectionSet.self),
+        .field("_", __SelectionSet.self),
       ] }
     """
 
@@ -1090,6 +1202,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", alias: "aliased", String.self, arguments: ["variable": 3]),
       ] }
     """
@@ -1128,6 +1241,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", alias: "aliased", String.self, arguments: ["variable": .null]),
       ] }
     """
@@ -1166,6 +1280,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", alias: "aliased", String.self, arguments: ["variable": .variable("var")]),
       ] }
     """
@@ -1235,6 +1350,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("string", alias: "aliased", String.self, arguments: ["input": [
           "string": "ABCD",
           "int": 3,
@@ -1299,6 +1415,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .inlineFragment(AsPet.self),
         .inlineFragment(AsLowercaseInterface.self),
       ] }
@@ -1350,6 +1467,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .fragment(FragmentA.self),
         .fragment(LowercaseFragment.self),
       ] }
@@ -1391,6 +1509,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: "a", .field("fieldName", String.self)),
       ] }
     """
@@ -1429,6 +1548,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: !"b", .field("fieldName", String.self)),
       ] }
     """
@@ -1467,6 +1587,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: !"b" && "a", .field("fieldName", String.self)),
       ] }
     """
@@ -1508,6 +1629,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: (!"b" && "a") || !"c" || ("d" && !"e") || "f", .field("fieldName", String.self)),
       ] }
     """
@@ -1560,11 +1682,12 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: "a", [
           .field("fieldA", String.self),
           .field("fieldB", String.self),
-          .inlineFragment(AsPet.self),
-          .fragment(FragmentA.self),
+          .inlineFragment(AsPetIfA.self),
+          .inlineFragment(IfA.self),
         ]),
       ] }
     """
@@ -1613,7 +1736,8 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
-        .include(if: "a", .inlineFragment(AsPet.self)),
+        .field("__typename", String.self),
+        .include(if: "a", .inlineFragment(AsPetIfA.self)),
       ] }
     """
 
@@ -1657,6 +1781,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .include(if: "a", .inlineFragment(IfA.self)),
       ] }
     """
@@ -1718,7 +1843,332 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_asPet)
 
     // then
+    expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
+  }
+
+  // MARK: Selections - __typename Selection
+
+  func test__render_selections__givenEntityRootSelectionSet_rendersTypenameSelection() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    type Animal {
+      fieldName: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        fieldName
+      }
+    }
+    """
+
+    let expected = """
+      public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
+        .field("fieldName", String.self),
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: allAnimals)
+
+    // then
     expect(actual).to(equalLineByLine(expected, atLine: 7, ignoringExtraLines: true))
+  }
+
+  func test__render_selections__givenInlineFragment_doesNotRenderTypenameSelection() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    type Animal {
+      fieldName: String!
+    }
+
+    interface Pet {
+      fieldName: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        ... on Pet {
+          fieldName
+        }
+      }
+    }
+    """
+
+    let expected = """
+      public static var __selections: [ApolloAPI.Selection] { [
+        .field("fieldName", String.self),
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: allAnimals_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
+  }
+
+  func test__render_selections__givenOperationRootSelectionSet_doesNotRenderTypenameSelection() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]!
+    }
+
+    type Animal {
+      fieldName: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        fieldName
+      }
+    }
+    """
+
+    let expected = """
+      public static var __selections: [ApolloAPI.Selection] { [
+        .field("allAnimals", [AllAnimal].self),
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let queryRoot = try XCTUnwrap(
+      operation[field: "query"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: queryRoot)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 7, ignoringExtraLines: true))
+  }
+
+  // MARK: Merged Sources
+
+  func test__render_mergedSources__givenMergedTypeCasesFromSingleMergedTypeCaseSource_rendersMergedSources() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predator: Animal!
+    }
+
+    interface Pet implements Animal {
+      species: String!
+      predator: Animal!
+      name: String!
+    }
+
+    type Dog implements Animal & Pet {
+      species: String!
+      predator: Animal!
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        species
+        predator {
+          ... on Pet {
+            name
+          }
+        }
+        ... on Dog {
+          name
+          predator {
+            species
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+      public static var __mergedSources: [any ApolloAPI.SelectionSet.Type] { [
+        TestOperationQuery.Data.AllAnimal.Predator.AsPet.self,
+        TestOperationQuery.Data.AllAnimal.AsDog.Predator.self
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals_asDog_predator_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[as: "Dog"]?[field: "predator"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: allAnimals_asDog_predator_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
+  }
+
+  func test__render_mergedSources__givenTypeCaseMergedFromFragmentWithOtherMergedFields_rendersMergedSources() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predator: Animal!
+    }
+
+    interface Pet {
+      favoriteToy: Item
+    }
+
+    type Item {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        predator {
+          ...PredatorDetails
+          species
+        }
+      }
+    }
+
+    fragment PredatorDetails on Animal {
+      ... on Pet {
+        favoriteToy {
+          ...PetToy
+        }
+      }
+    }
+
+    fragment PetToy on Item {
+      name
+    }
+    """
+
+    let expected = """
+      public static var __mergedSources: [any ApolloAPI.SelectionSet.Type] { [
+        TestOperationQuery.Data.AllAnimal.Predator.self,
+        PredatorDetails.AsPet.self
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let predator_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[field: "predator"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: predator_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
+  }
+
+  /// Test for edge case in [#2949](https://github.com/apollographql/apollo-ios/issues/2949)
+  ///
+  /// When the `MergedSource` would have duplicate naming, due to child fields with the same name
+  /// (or alias), the fully qualified name must be used. In this example, a `MergedSource` of
+  /// `Predator.Predator` the first usage of the name `Predator` would be referencing the nearest
+  /// enclosing type (ie. `TestOperationQuery.Predator.Predator`), so it is looking for another
+  /// `Predator` type in that scope, which does not exist
+  /// (ie. `TestOperationQuery.Predator.Predator.Predator`).
+  ///
+  /// To correct this we must always use the fully qualified name including the operation name and
+  /// `Data` objects to ensure we are referring to the correct type.
+  func test__render_mergedSources__givenMergedTypeCaseWithConflictingNames_rendersMergedSourceWithFullyQualifiedName() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      predators: [Animal!]!
+    }
+
+    interface Animal {
+      species: String!
+      predator: Animal!
+    }
+
+    interface Pet implements Animal {
+      species: String!
+      predator: Animal!
+      name: String!
+    }
+
+    type Dog implements Animal & Pet {
+      species: String!
+      predator: Animal!
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      predators {
+        species
+        predator {
+          ... on Pet {
+            name
+          }
+        }
+        ... on Dog {
+          name
+          predator {
+            species
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+      public static var __mergedSources: [any ApolloAPI.SelectionSet.Type] { [
+        TestOperationQuery.Data.Predator.Predator.AsPet.self,
+        TestOperationQuery.Data.Predator.AsDog.Predator.self
+      ] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals_asDog_predator_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "predators"]?[as: "Dog"]?[field: "predator"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: allAnimals_asDog_predator_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
   }
 
   // MARK: - Field Accessors - Scalar
@@ -1827,7 +2277,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 34, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 35, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenCustomScalarFields_rendersFieldAccessorsWithNamespaceWhenRequiredInAllConfigurations() throws {
@@ -1870,15 +2320,15 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let tests: [ApolloCodegenConfiguration.FileOutput] = [
-      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil)),
-      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom")),
+      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .swiftPackageManager, operations: .inSchemaModule),
-      .mock(moduleType: .other, operations: .relative(subpath: nil)),
-      .mock(moduleType: .other, operations: .absolute(path: "custom")),
+      .mock(moduleType: .other, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .other, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .other, operations: .inSchemaModule),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil)),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom")),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .inSchemaModule)
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom", accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget", accessModifier: .public), operations: .inSchemaModule)
     ]
 
     for test in tests {
@@ -1891,7 +2341,7 @@ class SelectionSetTemplateTests: XCTestCase {
       let actual = subject.render(field: allAnimals)
 
       // then
-      expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
+      expect(actual).to(equalLineByLine(expected, atLine: 16, ignoringExtraLines: true))
     }
   }
 
@@ -1938,15 +2388,15 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let tests: [ApolloCodegenConfiguration.FileOutput] = [
-      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil)),
-      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom")),
+      .mock(moduleType: .swiftPackageManager, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .swiftPackageManager, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .swiftPackageManager, operations: .inSchemaModule),
-      .mock(moduleType: .other, operations: .relative(subpath: nil)),
-      .mock(moduleType: .other, operations: .absolute(path: "custom")),
+      .mock(moduleType: .other, operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .other, operations: .absolute(path: "custom", accessModifier: .public)),
       .mock(moduleType: .other, operations: .inSchemaModule),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil)),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom")),
-      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .inSchemaModule)
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .relative(subpath: nil, accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget"), operations: .absolute(path: "custom", accessModifier: .public)),
+      .mock(moduleType: .embeddedInTarget(name: "CustomTarget", accessModifier: .public), operations: .inSchemaModule)
     ]
 
     for test in tests {
@@ -1959,7 +2409,7 @@ class SelectionSetTemplateTests: XCTestCase {
       let actual = subject.render(field: allAnimals)
 
       // then
-      expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+      expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
     }
   }
 
@@ -1998,7 +2448,43 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+  }
+  
+  func test__render_fieldAccessors__givenFieldWithAllUpperCaseName_rendersFieldAccessorWithLowercaseName() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      AllAnimals: [Animal!]
+    }
+
+    type Animal {
+      FIELDNAME: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      AllAnimals {
+        FIELDNAME
+      }
+    }
+    """
+
+    let expected = """
+      public var fieldname: String { __data["FIELDNAME"] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals = try XCTUnwrap(
+      operation[field: "query"]?[field: "AllAnimals"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: allAnimals)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenFieldWithAlias_rendersAllFieldAccessors() throws {
@@ -2036,7 +2522,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenMergedScalarField_rendersFieldAccessor() throws {
@@ -2080,7 +2566,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: dog)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   // MARK: Field Accessors - Reserved Keywords + Special Names
@@ -2126,6 +2612,7 @@ class SelectionSetTemplateTests: XCTestCase {
       do: String!
       else: String!
       fallthrough: String!
+      for: String!
       guard: String!
       if: String!
       in: String!
@@ -2185,6 +2672,7 @@ class SelectionSetTemplateTests: XCTestCase {
         do
         else
         fallthrough
+        for
         guard
         if
         in
@@ -2242,6 +2730,7 @@ class SelectionSetTemplateTests: XCTestCase {
       public var `do`: String { __data["do"] }
       public var `else`: String { __data["else"] }
       public var `fallthrough`: String { __data["fallthrough"] }
+      public var `for`: String { __data["for"] }
       public var `guard`: String { __data["guard"] }
       public var `if`: String { __data["if"] }
       public var `in`: String { __data["in"] }
@@ -2274,7 +2763,7 @@ class SelectionSetTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(
       expected,
-      atLine: 10 + allAnimals.selectionSet.selections.direct!.fields.count,
+      atLine: 11 + allAnimals.selectionSet.selections.direct!.fields.count,
       ignoringExtraLines: true)
     )
   }
@@ -2322,7 +2811,7 @@ class SelectionSetTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(
       expected,
-      atLine: 10 + allAnimals.selectionSet.selections.direct!.fields.count,
+      atLine: 11 + allAnimals.selectionSet.selections.direct!.fields.count,
       ignoringExtraLines: true)
     )
   }
@@ -2435,7 +2924,7 @@ class SelectionSetTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(
       expected,
-      atLine: 10 + allAnimals.selectionSet.selections.direct!.fields.count,
+      atLine: 11 + allAnimals.selectionSet.selections.direct!.fields.count,
       ignoringExtraLines: true)
     )
   }
@@ -2487,7 +2976,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenDirectEntityFieldWithAlias_rendersFieldAccessor() throws {
@@ -2526,7 +3015,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenDirectEntityFieldAsOptional_rendersFieldAccessor() throws {
@@ -2565,7 +3054,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenDirectEntityFieldAsList_rendersFieldAccessor() throws {
@@ -2604,7 +3093,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldWithDirectSelectionsAndMergedFromFragment_rendersFieldAccessor() throws {
@@ -2651,7 +3140,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
   }
 
   // MARK: Field Accessors - Merged Fragment
@@ -2696,7 +3185,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldMergedFromFragmentEntityNestedInEntity_rendersFieldAccessor() throws {
@@ -2750,7 +3239,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldMergedFromFragmentInTypeCaseWithEntityNestedInEntity_rendersFieldAccessor() throws {
@@ -2873,8 +3362,8 @@ class SelectionSetTemplateTests: XCTestCase {
     let allAnimals_predator_asPet_actual = subject.render(inlineFragment: allAnimals_predator_asPet)
 
     // then
-    expect(allAnimals_predator_actual).to(equalLineByLine(predator_expected, atLine: 12, ignoringExtraLines: true))
-    expect(allAnimals_predator_asPet_actual).to(equalLineByLine(predator_asPet_expected, atLine: 8, ignoringExtraLines: true))
+    expect(allAnimals_predator_actual).to(equalLineByLine(predator_expected, atLine: 13, ignoringExtraLines: true))
+    expect(allAnimals_predator_asPet_actual).to(equalLineByLine(predator_asPet_expected, atLine: 13, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldMergedFromFragmentWithEntityNestedInEntityTypeCase_rendersFieldAccessor() throws {
@@ -2942,8 +3431,8 @@ class SelectionSetTemplateTests: XCTestCase {
     let allAnimals_predator_asPet_actual = subject.render(inlineFragment: allAnimals_predator_asPet)
 
     // then
-    expect(allAnimals_predator_actual).to(equalLineByLine(predator_expected, atLine: 11, ignoringExtraLines: true))
-    expect(allAnimals_predator_asPet_actual).to(equalLineByLine(predator_asPet_expected, atLine: 8, ignoringExtraLines: true))
+    expect(allAnimals_predator_actual).to(equalLineByLine(predator_expected, atLine: 12, ignoringExtraLines: true))
+    expect(allAnimals_predator_asPet_actual).to(equalLineByLine(predator_asPet_expected, atLine: 13, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenTypeCaseMergedFromFragmentWithOtherMergedFields_rendersFieldAccessor() throws {
@@ -3004,7 +3493,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(predator_actual)
-      .to(equalLineByLine(predator_expected, atLine: 14, ignoringExtraLines: true))
+      .to(equalLineByLine(predator_expected, atLine: 15, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenTypeCaseMergedFromFragmentWithNoOtherMergedFields_rendersFieldAccessor() throws {
@@ -3064,7 +3553,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(predator_actual)
-      .to(equalLineByLine(predator_expected, atLine: 11, ignoringExtraLines: true))
+      .to(equalLineByLine(predator_expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldMergedAsRootOfNestedFragment_rendersFieldAccessor() throws {
@@ -3124,12 +3613,12 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(predator_asPet_actual)
-      .to(equalLineByLine(predator_asPet_expected, atLine: 8, ignoringExtraLines: true))
+      .to(equalLineByLine(predator_asPet_expected, atLine: 13, ignoringExtraLines: true))
   }
 
   // MARK: Field Accessors - Merged From Parent
 
-  func test__render_fieldAccessors__givenEntityFieldMergedFromParent_rendersFieldAccessorWithDirectName() throws {
+  func test__render_fieldAccessors__givenEntityFieldMergedFromParent_notOperationRoot_rendersFieldAccessorWithNameNotIncludingParent() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3175,10 +3664,54 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_asDog)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_fieldAccessors__givenEntityFieldMergedFromSiblingTypeCase_rendersFieldAccessorWithCorrectName() throws {
+  func test__render_fieldAccessors__givenEntityFieldMergedFromParent_atOperationRoot_rendersFieldAccessorWithNameNotIncludingParent() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    type AdminQuery {
+      name: String!
+    }
+
+    interface Animal {
+      species: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        species
+      }
+      ... on AdminQuery {
+        name
+      }
+    }
+    """
+
+    let expected = """
+      public var name: String { __data["name"] }
+      public var allAnimals: [AllAnimal]? { __data["allAnimals"] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let query_asAdminQuery = try XCTUnwrap(
+      operation[field: "query"]?[as: "AdminQuery"]
+    )
+
+    let actual = subject.render(inlineFragment: query_asAdminQuery)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+  }
+
+  func test__render_fieldAccessors__givenEntityFieldMergedFromSiblingTypeCase_notOperationRoot_rendersFieldAccessorWithNameNotIncludingSharedParent() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3231,7 +3764,58 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_asDog)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+  }
+
+  func test__render_fieldAccessors__givenEntityFieldMergedFromSiblingTypeCase_atOperationRoot_rendersFieldAccessorWithNotIncludingSharedParent() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      role: String!
+    }
+
+    type AdminQuery implements ModeratorQuery {
+      name: String!
+      allAnimals: [Animal!]
+    }
+
+    interface ModeratorQuery {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      ... on ModeratorQuery {
+        allAnimals {
+          species
+        }
+      }
+      ... on AdminQuery {
+        name
+      }
+    }
+    """
+
+    let expected = """
+      public var name: String { __data["name"] }
+      public var allAnimals: [AsModeratorQuery.AllAnimal]? { __data["allAnimals"] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let query_asAdminQuery = try XCTUnwrap(
+      operation[field: "query"]?[as: "AdminQuery"]
+    )
+
+    let actual = subject.render(inlineFragment: query_asAdminQuery)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldNestedInEntityFieldMergedFromParent_rendersFieldAccessorWithCorrectName() throws {
@@ -3290,7 +3874,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_asDog_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldNestedInEntityFieldInMatchingTypeCaseMergedFromParent_rendersFieldAccessorWithCorrectName() throws {
@@ -3357,7 +3941,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_asDog_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   // MARK: Field Accessors - Include/Skip
@@ -3395,7 +3979,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessor__givenNonNullFieldWithSkipCondition_rendersAsOptional() throws {
@@ -3431,7 +4015,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenEntityFieldMergedFromParentWithInclusionCondition_rendersFieldAccessorAsOptional() throws {
@@ -3480,7 +4064,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_asDog)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessor__givenNonNullFieldMergedFromParentWithIncludeConditionThatMatchesScope_rendersAsNotOptional() throws {
@@ -3521,7 +4105,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_ifA)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessor__givenNonNullFieldWithIncludeConditionThatMatchesScope_rendersAsNotOptional() throws {
@@ -3557,7 +4141,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessor__givenNonNullFieldMergedFromNestedEntityInNamedFragmentWithIncludeCondition_doesNotRenderField() throws {
@@ -3607,7 +4191,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_child)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessor__givenNonNullFieldMergedFromNestedEntityInNamedFragmentWithIncludeCondition_inConditionalFragment_rendersFieldAsNonOptional() throws {
@@ -3660,6 +4244,8 @@ class SelectionSetTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, atLine: 8, ignoringExtraLines: true))
   }
+  
+  
 
   // MARK: - Inline Fragment Accessors
 
@@ -3716,7 +4302,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 16, ignoringExtraLines: true))
   }
 
   func test__render_inlineFragmentAccessors__givenMergedTypeCasesFromSingleMergedTypeCaseSource_rendersTypeCaseAccessorWithCorrectName() throws {
@@ -3776,12 +4362,12 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_asDog_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   // MARK: Inline Fragment Accessors - Include/Skip
 
-  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithCondition_rendersWithConditionInTypeCaseConversionFunction() throws {
+  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithCondition_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3808,7 +4394,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var asPet: AsPet? { _asInlineFragment(if: "a") }
+      public var asPetIfA: AsPetIfA? { _asInlineFragment() }
     """
 
     // when
@@ -3820,10 +4406,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithSkipCondition_rendersWithConditionInTypeCaseConversionFunction() throws {
+  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithSkipCondition_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3850,7 +4436,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var asPet: AsPet? { _asInlineFragment(if: !"a") }
+      public var asPetIfNotA: AsPetIfNotA? { _asInlineFragment() }
     """
 
     // when
@@ -3862,10 +4448,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithMultipleConditions_rendersWithConditionInTypeCaseConversionFunction() throws {
+  func test__render_inlineFragmentAccessors__givenInlineFragmentOnDifferentTypeWithMultipleConditions_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3892,7 +4478,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var asPet: AsPet? { _asInlineFragment(if: "a" && !"b") }
+      public var asPetIfAAndNotB: AsPetIfAAndNotB? { _asInlineFragment() }
     """
 
     // when
@@ -3904,10 +4490,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_inlineFragmentAccessors__givenInlineFragmentOnSameTypeWithMultipleConditions_rendersConditionalSelectionSetAccessor() throws {
+  func test__render_inlineFragmentAccessors__givenInlineFragmentOnSameTypeWithMultipleConditions_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3934,7 +4520,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var ifAAndNotB: IfAAndNotB? { _asInlineFragment(if: "a" && !"b") }
+      public var ifAAndNotB: IfAAndNotB? { _asInlineFragment() }
     """
 
     // when
@@ -3946,10 +4532,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_inlineFragmentAccessor__givenNamedFragmentOnSameTypeWithInclusionCondition_rendersConditionalSelectionSetAccessor() throws {
+  func test__render_inlineFragmentAccessor__givenNamedFragmentMatchingParentTypeWithInclusionCondition_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -3975,7 +4561,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var ifA: IfA? { _asInlineFragment(if: "a") }
+      public var ifA: IfA? { _asInlineFragment() }
     """
 
     // when
@@ -3987,7 +4573,57 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
+  }
+
+  func test__render_inlineFragmentAccessor__givenInlineFragmentAndNamedFragmentOnSameTypeWithInclusionCondition_rendersBothInlineFragments() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      string: String!
+      int: Int!
+    }
+
+    type Bird implements Animal {
+      string: String!
+      int: Int!
+    }
+    """
+
+    document = """
+    query TestOperation($a: Boolean!) {
+      allAnimals {
+        ... on Bird {
+          string
+        }
+        ...FragmentA @include(if: $a)
+      }
+    }
+
+    fragment FragmentA on Bird {
+      int
+    }
+    """
+
+    let expected = """
+      public var asBird: AsBird? { _asInlineFragment() }
+      public var asBirdIfA: AsBirdIfA? { _asInlineFragment() }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: allAnimals)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
   }
 
   // MARK: - Fragment Accessors
@@ -4025,7 +4661,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var fragmentA: FragmentA { _toFragment() }
         public var lowercaseFragment: LowercaseFragment { _toFragment() }
@@ -4041,7 +4677,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 16, ignoringExtraLines: true))
   }
 
   func test__render_fragmentAccessor__givenInheritedFragmentFromParent_rendersFragmentAccessor() throws {
@@ -4084,7 +4720,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var fragmentA: FragmentA { _toFragment() }
       }
@@ -4099,12 +4735,12 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_asCat)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
   }
 
   // MARK: - Fragment Accessors - Include Skip
 
-  func test__render_fragmentAccessor__givenFragmentOnSameTypeWithInclusionCondition_rendersFragmentAccessorAsOptionalWithInclusionCondition() throws {
+  func test__render_fragmentAccessor__givenFragmentOnSameTypeWithInclusionCondition_rendersFragmentAccessorAsOptional() throws {
     // given
     schemaSDL = """
     type Query {
@@ -4137,10 +4773,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
-        public var fragmentA: FragmentA? { _toFragment(if: "a") }
         public var lowercaseFragment: LowercaseFragment { _toFragment() }
+        public var fragmentA: FragmentA? { _toFragment() }
       }
     """
 
@@ -4153,7 +4789,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 16, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 17, ignoringExtraLines: true))
   }
 
   func test__render_fragmentAccessor__givenFragmentOnSameTypeWithInclusionConditionThatMatchesScope_rendersFragmentAccessorAsNotOptional() throws {
@@ -4184,7 +4820,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var fragmentA: FragmentA { _toFragment() }
       }
@@ -4199,10 +4835,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
-  func test__render_fragmentAccessor__givenFragmentOnSameTypeWithInclusionConditionThatPartiallyMatchesScope_rendersFragmentAccessorAsOptionalWithConditions() throws {
+  func test__render_fragmentAccessor__givenFragmentOnSameTypeWithInclusionConditionThatPartiallyMatchesScope_rendersFragmentAccessorAsOptional() throws {
     // given
     schemaSDL = """
     type Query {
@@ -4230,9 +4866,9 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
-        public var fragmentA: FragmentA? { _toFragment(if: "a" && "b") }
+        public var fragmentA: FragmentA? { _toFragment() }
       }
     """
 
@@ -4245,7 +4881,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   func test__render_fragmentAccessor__givenFragmentMergedFromParent_withInclusionConditionThatMatchesScope_rendersFragmentAccessorAsNotOptional() throws {
@@ -4276,7 +4912,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var fragmentA: FragmentA { _toFragment() }
       }
@@ -4291,7 +4927,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(inlineFragment: allAnimals_ifA)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 10, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   // MARK: - Nested Selection Sets
@@ -4335,7 +4971,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSets__givenDirectEntityFieldAsList_withIrregularPluralizationRule_rendersNestedSelectionSetWithCorrectSingularName() throws {
@@ -4377,7 +5013,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSets__givenDirectEntityFieldAsNonNullList_withIrregularPluralizationRule_rendersNestedSelectionSetWithCorrectSingularName() throws {
@@ -4419,7 +5055,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSets__givenDirectEntityFieldAsList_withCustomIrregularPluralizationRule_rendersNestedSelectionSetWithCorrectSingularName() throws {
@@ -4464,7 +5100,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   /// Explicit test for edge case surfaced in issue
@@ -4504,10 +5140,11 @@ class SelectionSetTemplateTests: XCTestCase {
       /// Badge
       public struct Badge: TestSchema.SelectionSet {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Badge }
         public static var __selections: [ApolloAPI.Selection] { [
+          .field("__typename", String.self),
           .field("a", String?.self),
         ] }
 
@@ -4517,10 +5154,11 @@ class SelectionSetTemplateTests: XCTestCase {
       /// Badges
       public struct Badges: TestSchema.SelectionSet {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.ProductBadge }
         public static var __selections: [ApolloAPI.Selection] { [
+          .field("__typename", String.self),
           .field("b", String?.self),
         ] }
 
@@ -4578,10 +5216,11 @@ class SelectionSetTemplateTests: XCTestCase {
       /// Badge
       public struct Badge: TestSchema.SelectionSet {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Badge }
         public static var __selections: [ApolloAPI.Selection] { [
+          .field("__typename", String.self),
           .field("a", String?.self),
         ] }
 
@@ -4591,10 +5230,11 @@ class SelectionSetTemplateTests: XCTestCase {
       /// Badges
       public struct Badges: TestSchema.SelectionSet {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.ProductBadge }
         public static var __selections: [ApolloAPI.Selection] { [
+          .field("__typename", String.self),
           .field("b", String?.self),
         ] }
 
@@ -4696,7 +5336,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_asDog_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet__givenEntityFieldMergedFromFragment_doesNotRendersSelectionSet() throws {
@@ -4731,7 +5371,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var predatorDetails: PredatorDetails { _toFragment() }
       }
@@ -4747,7 +5387,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet__givenEntityFieldMergedFromFragmentWithLowercaseName_rendersFragmentNestedSelctionSetNameCorrectlyCased() throws {
@@ -4782,7 +5422,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var predatorDetails: PredatorDetails { _toFragment() }
       }
@@ -4798,7 +5438,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet__givenEntityFieldMergedFromNestedFragmentInTypeCase_withNoOtherMergedFields_doesNotRendersSelectionSet() throws {
@@ -4866,7 +5506,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var warmBloodedDetails: WarmBloodedDetails { _toFragment() }
         public var heightInMeters: HeightInMeters { _toFragment() }
@@ -4893,11 +5533,11 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(allAnimals_actual)
-      .to(equalLineByLine(allAnimals_expected, atLine: 11, ignoringExtraLines: true))
+      .to(equalLineByLine(allAnimals_expected, atLine: 12, ignoringExtraLines: true))
     expect(allAnimals_predator_actual)
-      .to(equalLineByLine(allAnimals_predator_expected, atLine: 11, ignoringExtraLines: true))
+      .to(equalLineByLine(allAnimals_predator_expected, atLine: 12, ignoringExtraLines: true))
     expect(allAnimals_predator_asWarmBlooded_actual)
-      .to(equalLineByLine(allAnimals_predator_asWarmBlooded_expected, atLine: 11, ignoringExtraLines: true))
+      .to(equalLineByLine(allAnimals_predator_asWarmBlooded_expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSets__givenDirectSelection_typeCase_rendersNestedSelectionSet() throws {
@@ -4952,10 +5592,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
   }
 
-  func test__render_nestedSelectionSet__givenMergedTypeCasesFromSingleMergedTypeCaseSource_rendersTypeCaseSelectionSet() throws {
+  func test__render_nestedSelectionSet__givenMergedTypeCasesFromSingleMergedTypeCaseSource_rendersTypeCaseSelectionSetAsCompositeInlineFragment() throws {
     // given
     schemaSDL = """
     type Query {
@@ -5003,7 +5643,7 @@ class SelectionSetTemplateTests: XCTestCase {
       public var asPet: AsPet? { _asInlineFragment() }
 
       /// AllAnimal.AsDog.Predator.AsPet
-      public struct AsPet: TestSchema.InlineFragment {
+      public struct AsPet: TestSchema.InlineFragment, ApolloAPI.CompositeInlineFragment {
     """
 
     // when
@@ -5015,10 +5655,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals_asDog_predator)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
-  func test__render_nestedSelectionSet__givenInlineFragmentOnSameTypeWithMultipleConditions_rendersConditionalSelectionSet() throws {
+  func test__render_nestedSelectionSet__givenInlineFragmentOnSameTypeWithMultipleConditions_renders() throws {
     // given
     schemaSDL = """
     type Query {
@@ -5045,7 +5685,7 @@ class SelectionSetTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public var ifAAndNotB: IfAAndNotB? { _asInlineFragment(if: "a" && !"b") }
+      public var ifAAndNotB: IfAAndNotB? { _asInlineFragment() }
 
       /// AllAnimal.IfAAndNotB
       public struct IfAAndNotB: TestSchema.InlineFragment {
@@ -5060,7 +5700,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet__givenNamedFragmentOnSameTypeWithInclusionCondition_rendersConditionalSelectionSet() throws {
@@ -5102,10 +5742,10 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 20, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 21, ignoringExtraLines: true))
   }
 
-  func test__render_nestedSelectionSet__givenTypeCaseMergedFromFragmentWithOtherMergedFields_rendersTypeCase() throws {
+  func test__render_nestedSelectionSet__givenTypeCaseMergedFromFragmentWithOtherMergedFields_rendersTypeCaseAsCompositeInlineFragment() throws {
     // given
     schemaSDL = """
     type Query {
@@ -5151,7 +5791,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let predator_expected = """
       /// AllAnimal.Predator.AsPet
-      public struct AsPet: TestSchema.InlineFragment {
+      public struct AsPet: TestSchema.InlineFragment, ApolloAPI.CompositeInlineFragment {
     """
 
     // when
@@ -5164,7 +5804,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(predator_actual)
-      .to(equalLineByLine(predator_expected, atLine: 23, ignoringExtraLines: true))
+      .to(equalLineByLine(predator_expected, atLine: 24, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet__givenTypeCaseMergedFromFragmentWithNoOtherMergedFields_rendersTypeCase() throws {
@@ -5212,7 +5852,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let predator_expected = """
       /// AllAnimal.Predator.AsPet
-      public struct AsPet: TestSchema.InlineFragment {
+      public struct AsPet: TestSchema.InlineFragment, ApolloAPI.CompositeInlineFragment {
     """
 
     // when
@@ -5225,13 +5865,13 @@ class SelectionSetTemplateTests: XCTestCase {
 
     // then
     expect(predator_actual)
-      .to(equalLineByLine(predator_expected, atLine: 20, ignoringExtraLines: true))
+      .to(equalLineByLine(predator_expected, atLine: 21, ignoringExtraLines: true))
   }
 
   // MARK: Nested Selection Sets - Reserved Keywords + Special Names
 
   func test__render_nestedSelectionSet__givenEntityFieldWithSwiftKeywordAndApolloReservedTypeNames_rendersSelectionSetWithNameSuffixed() throws {
-    let fieldNames = SwiftKeywords.SelectionSetTypeNamesToSuffix
+    let fieldNames = SwiftKeywords.TypeNamesToSuffix
     for fieldName in fieldNames {
       // given
       schemaSDL = """
@@ -5270,8 +5910,373 @@ class SelectionSetTemplateTests: XCTestCase {
 
       // then
       expect(predator_actual)
-        .to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+        .to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
     }
+  }
+
+  // MARK: - InlineFragment RootEntityType Tests
+
+  func test__render_nestedTypeCase__rendersRootEntityType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predators: [Animal!]
+    }
+
+    interface Pet {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        ... on Pet {
+          name
+        }
+      }
+    }
+    """
+
+    let expected = """
+    /// AllAnimal.AsPet
+    public struct AsPet: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data.AllAnimal
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals_AsPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: allAnimals_AsPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  func test__render_doublyNestedTypeCase__rendersRootEntityType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predators: [Animal!]
+    }
+
+    interface Pet {
+      name: String!
+    }
+
+    interface WarmBlooded {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        ... on WarmBlooded {
+          ... on Pet {
+            name
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+    /// AllAnimal.AsWarmBlooded.AsPet
+    public struct AsPet: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data.AllAnimal
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let allAnimals_AsPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[as: "WarmBlooded"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: allAnimals_AsPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  func test__render_nestedTypeCaseWithNameConflictingWithChild__rendersRootEntityType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predators: [Animal!]
+    }
+
+    interface Pet {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        predators {
+           ... on Pet {
+            name
+          }
+          predators {
+            species
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+    /// AllAnimal.Predator.AsPet
+    public struct AsPet: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data.AllAnimal.Predator
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let predators_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "allAnimals"]?[field: "predators"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: predators_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  /// Test for edge case in [#2949](https://github.com/apollographql/apollo-ios/issues/2949)
+  ///
+  /// When the `RootEntityType` would have duplicate naming, due to child fields with the same name
+  /// (or alias), the fully qualified name must be used. In this example, a `RootEntityType` of
+  /// `Predator.Predator` the first usage of the name `Predator` would be referencing the nearest
+  /// enclosing type (ie. `TestOperationQuery.Predator.Predator`), so it is looking for another
+  /// `Predator` type in that scope, which does not exist
+  /// (ie. `TestOperationQuery.Predator.Predator.Predator`).
+  ///
+  /// To correct this we must always use the fully qualified name including the operation name and
+  /// `Data` objects to ensure we are referring to the correct type.
+  func test__render_nestedTypeCaseWithNameConflictingWithChildAtQueryRoot__rendersRootEntityTypeWithFullyQualifiedName() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      predators: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predators: [Animal!]
+    }
+
+    interface Pet {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      predators {
+        predators {
+           ... on Pet {
+            name
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+    /// Predator.Predator.AsPet
+    public struct AsPet: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data.Predator.Predator
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let predators_asPet = try XCTUnwrap(
+      operation[field: "query"]?[field: "predators"]?[field: "predators"]?[as: "Pet"]
+    )
+
+    let actual = subject.render(inlineFragment: predators_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  func test__render_conditionalFragmentOnQueryRoot__rendersRootEntityType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation($a: Boolean!) {
+      ...Details @include(if: $a)
+    }
+
+    fragment Details on Query {
+      name
+    }
+    """
+
+    let expected = """
+    /// IfA
+    public struct IfA: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data
+    """
+    
+    // when
+    try buildSubjectAndOperation()
+    let query_ifA = try XCTUnwrap(
+      operation[field: "query"]?[if: "a"]
+    )
+
+    let actual = subject.render(inlineFragment: query_ifA)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  func test__render_conditionalTypeCaseFragmentOnQueryRoot__rendersRootEntityType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      name: String!
+    }
+
+    interface AdminQuery {
+      adminName: String!
+    }
+    """
+
+    document = """
+    query TestOperation($a: Boolean!) {
+      ...AdminDetails @include(if: $a)
+    }
+
+    fragment AdminDetails on AdminQuery {
+      adminName
+    }
+    """
+
+    let expected = """
+    /// AsAdminQueryIfA
+    public struct AsAdminQueryIfA: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = TestOperationQuery.Data
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let query_ifA = try XCTUnwrap(
+      operation[field: "query"]?[as: "AdminQuery", if: "a"]
+    )
+
+    let actual = subject.render(inlineFragment: query_ifA)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
+  }
+
+  func test__render_typeCaseInFragmentOnQueryRoot__rendersRootEntityTypeNamespacedToFragment() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      predators: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+      predators: [Animal!]
+    }
+
+    interface Pet {
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      ...Details
+    }
+
+    fragment Details on Query {
+      predators {
+        predators {
+          ... on Pet {
+            name
+          }
+        }
+      }
+    }
+    """
+
+    let expected = """
+    /// Predator.Predator.AsPet
+    public struct AsPet: TestSchema.InlineFragment {
+      public let __data: DataDict
+      public init(_dataDict: DataDict) { __data = _dataDict }
+
+      public typealias RootEntityType = Details.Predator.Predator
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let detailsFragment = try XCTUnwrap(
+      operation[fragment: "Details"]
+    )
+    let detailsFragment_predators_predators_asPet = try XCTUnwrap(
+      detailsFragment.fragment.rootField
+        .selectionSet[field: "predators"]?[field: "predators"]?[as: "Pet"]
+    )
+
+    let fragmentTemplate = SelectionSetTemplate(
+      definition: .namedFragment(detailsFragment.fragment),
+      generateInitializers: false,
+      config: self.subject.config,
+      renderAccessControl: self.subject.renderAccessControl()
+    )
+
+    let actual = fragmentTemplate.render(inlineFragment: detailsFragment_predators_predators_asPet)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 1, ignoringExtraLines: true))
   }
 
   // MARK: - Documentation Tests
@@ -5317,7 +6322,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   func test__render_nestedSelectionSet_givenSchemaDocumentation_exclude_hasDocumentation_shouldNotGenerateDocumentationComment() throws {
@@ -5359,7 +6364,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenSchemaDocumentation_include_hasDocumentation_shouldGenerateDocumentationComment() throws {
@@ -5399,7 +6404,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenSchemaDocumentation_exclude_hasDocumentation_shouldNotGenerateDocumentationComment() throws {
@@ -5438,7 +6443,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   // MARK: - Deprecation Warnings
@@ -5482,101 +6487,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
-  }
-
-
-  func test__render_fieldAccessors__givenWarningsOnDeprecatedUsage_include_hasDeprecatedField_withMultilineDocumentation_shouldGenerateWarningBelowDocumentationWithMultilineLiteral() throws {
-    // given
-    schemaSDL = """
-    type Query {
-      allAnimals: [Animal!]
-    }
-
-    type Animal {
-      "This field is a string."
-      string: String! @deprecated(reason: "Cause I\\nsaid so!")
-    }
-    """ // Escaping the backslash is required to allow the frontend to parse correctly this string.
-    // Removing the escape leads to a "unterminated string literal" error when parsing the schema.
-
-    document = """
-    query TestOperation {
-      allAnimals {
-        string
-      }
-    }
-    """
-
-    let expected = #"""
-      /// This field is a string.
-      @available(*, deprecated, message: """
-        Cause I
-        said so!
-        """)
-      public var string: String { __data["string"] }
-    """#
-
-    // when
-    try buildSubjectAndOperation(
-      schemaDocumentation: .include,
-      warningsOnDeprecatedUsage: .include
-    )
-    let allAnimals = try XCTUnwrap(
-      operation[field: "query"]?[field: "allAnimals"] as? IR.EntityField
-    )
-
-    let actual = subject.render(field: allAnimals)
-
-    // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
-  }
-
-  func test__render_fieldAccessors__givenWarningsOnDeprecatedUsage_include_hasDeprecatedField_withMultilineDocumentation_includingEmptyLine_shouldGenerateWarningBelowDocumentationWithMultilineLiteral() throws {
-    // given
-    schemaSDL = """
-    type Query {
-      allAnimals: [Animal!]
-    }
-
-    type Animal {
-      "This field is a string."
-      string: String! @deprecated(reason: "Cause I\\n\\nsaid so!")
-    }
-    """ // Escaping the backslash is required to allow the frontend to parse correctly this string.
-    // Removing the escape leads to a "unterminated string literal" error when parsing the schema.
-
-    document = """
-    query TestOperation {
-      allAnimals {
-        string
-      }
-    }
-    """
-
-    let expected = #"""
-      /// This field is a string.
-      @available(*, deprecated, message: """
-        Cause I
-
-        said so!
-        """)
-      public var string: String { __data["string"] }
-    """#
-
-    // when
-    try buildSubjectAndOperation(
-      schemaDocumentation: .include,
-      warningsOnDeprecatedUsage: .include
-    )
-    let allAnimals = try XCTUnwrap(
-      operation[field: "query"]?[field: "allAnimals"] as? IR.EntityField
-    )
-
-    let actual = subject.render(field: allAnimals)
-
-    // then
-    expect(actual).to(equalLineByLine(expected, atLine: 13, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
   func test__render_fieldAccessors__givenWarningsOnDeprecatedUsage_exclude_hasDeprecatedField_shouldNotGenerateWarning() throws {
@@ -5612,7 +6523,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let actual = subject.render(field: allAnimals)
 
     // then
-    expect(actual).to(equalLineByLine(expected, atLine: 11, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expected, atLine: 12, ignoringExtraLines: true))
   }
 
   func test__render_selections__givenWarningsOnDeprecatedUsage_include_usesDeprecatedArgument__shouldGenerateWarning() throws {
@@ -5641,6 +6552,7 @@ class SelectionSetTemplateTests: XCTestCase {
     let expected = """
       #warning("Argument 'species' of field 'friend' is deprecated. Reason: 'Who cares?'")
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("friend", Friend?.self, arguments: [
           "name": .variable("name"),
           "species": .variable("species")
@@ -5687,6 +6599,7 @@ class SelectionSetTemplateTests: XCTestCase {
 
     let expected = """
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("friend", Friend?.self, arguments: [
           "name": .variable("name"),
           "species": .variable("species")
@@ -5738,6 +6651,7 @@ class SelectionSetTemplateTests: XCTestCase {
       #warning("Argument 'name' of field 'friend' is deprecated. Reason: 'Someone broke it.'"),
       #warning("Argument 'species' of field 'friend' is deprecated. Reason: 'Who cares?'")
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("friend", Friend?.self, arguments: [
           "name": .variable("name"),
           "species": .variable("species")
@@ -5787,6 +6701,7 @@ class SelectionSetTemplateTests: XCTestCase {
       #warning("Argument 'name' of field 'friend' is deprecated. Reason: 'Someone broke it.'"),
       #warning("Argument 'species' of field 'species' is deprecated. Reason: 'Redundant'")
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("friend", Friend?.self, arguments: ["name": .variable("name")]),
         .field("species", String?.self, arguments: ["species": .variable("species")]),
       ] }
@@ -5805,4 +6720,280 @@ class SelectionSetTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, atLine: 7, ignoringExtraLines: true))
   }
+  
+  // MARK: - Reserved Keyword Type Tests
+  
+  func test__render_enumType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      getUser: User
+    }
+
+    type User {
+      id: String!
+      name: String!
+      type: Type!
+    }
+
+    enum Type {
+      ADMIN
+      MEMBER
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getUser {
+            type
+        }
+    }
+    """
+
+    let expectedOne = """
+        .field("type", GraphQLEnum<TestSchema.Type_Enum>.self),
+    """
+    
+    let expectedTwo = """
+      public var type: GraphQLEnum<TestSchema.Type_Enum> { __data["type"] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getUser"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expectedOne, atLine: 9, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expectedTwo, atLine: 12, ignoringExtraLines: true))
+  }
+  
+  func test__render_NamedFragmentType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      getUser: User
+    }
+
+    type User {
+      id: String!
+      name: String!
+      type: UserRole!
+    }
+
+    enum UserRole {
+      ADMIN
+      MEMBER
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getUser {
+            ...Type
+        }
+    }
+
+    fragment Type on User {
+        name
+        type
+    }
+    """
+
+    let expectedOne = """
+        .fragment(Type_Fragment.self),
+    """
+    
+    let expectedTwo = """
+        public var type: Type_Fragment { _toFragment() }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getUser"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expectedOne, atLine: 9, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expectedTwo, atLine: 19, ignoringExtraLines: true))
+  }
+  
+  func test__render_CustomScalarType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    scalar Type
+
+    type Query {
+      getUser: User
+    }
+
+    type User {
+      id: String!
+      name: String!
+      type: Type!
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getUser {
+            type
+        }
+    }
+    """
+
+    let expectedOne = """
+        .field("type", TestSchema.Type_Scalar.self),
+    """
+    
+    let expectedTwo = """
+      public var type: TestSchema.Type_Scalar { __data["type"] }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getUser"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expectedOne, atLine: 9, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expectedTwo, atLine: 12, ignoringExtraLines: true))
+  }
+  
+  func test__render_InterfaceType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    interface Type {
+      name: String!
+    }
+
+    type Query {
+      getUser: Type
+    }
+
+    type User implements Type {
+      id: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getUser {
+            name
+        }
+    }
+    """
+
+    let expected = """
+      public static var __parentType: ApolloAPI.ParentType { TestSchema.Interfaces.Type_Interface }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getUser"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 6, ignoringExtraLines: true))
+  }
+  
+  func test__render_UnionType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    union Type = User | Admin
+
+    type Query {
+      getUser: Type
+    }
+
+    type User {
+      id: String!
+      name: String!
+    }
+
+    type Admin {
+      id: String!
+      role: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getUser {
+            ... on User {
+              name
+            }
+            ... on Admin {
+              role
+            }
+        }
+    }
+
+    """
+
+    let expected = """
+      public static var __parentType: ApolloAPI.ParentType { TestSchema.Unions.Type_Union }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getUser"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 6, ignoringExtraLines: true))
+  }
+  
+  func test__render_ObjectType__usingReservedKeyword_rendersAsSuffixedType() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      getType: Type
+    }
+
+    type Type {
+      id: String!
+      name: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+        getType {
+            name
+        }
+    }
+    """
+
+    let expected = """
+      public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Type_Object }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let user = try XCTUnwrap(
+      operation[field: "query"]?[field: "getType"] as? IR.EntityField
+    )
+
+    let actual = subject.render(field: user)
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 6, ignoringExtraLines: true))
+  }
+  
 }

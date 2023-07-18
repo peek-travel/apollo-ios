@@ -10,10 +10,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
   // MARK: - Helpers
 
   private static let executor: GraphQLExecutor = {
-    let executor = GraphQLExecutor { object, info in
-      return (object[info.responseKeyForField], Date())
-    }
-    executor.shouldComputeCachePath = false
+    let executor = GraphQLExecutor(executionSource: NetworkResponseExecutionSource())    
     return executor
   }()
 
@@ -169,6 +166,31 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
 
     // then
     XCTAssertEqual(data.customScalar, "1234.5678")
+  }
+
+  func test__nonnull_customScalar_asCustomStruct__givenDataAsInt64_getsValue() throws {
+    // given
+    struct GivenCustomScalar: CustomScalarType, Hashable {
+      let value: Int64
+      init(value: Int64) {
+        self.value = value
+      }
+      init(_jsonValue value: JSONValue) throws {
+        self.value = value as! Int64
+      }
+      var _jsonValue: JSONValue { value }
+    }
+
+    class GivenSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] { [.field("customScalar", GivenCustomScalar.self)] }
+    }
+    let object: JSONObject = ["customScalar": Int64(989561700)]
+
+    // when
+    let data = try readValues(GivenSelectionSet.self, from: object)
+
+    // then
+    XCTAssertEqual(data.customScalar, GivenCustomScalar(value: 989561700))
   }
 
   // MARK: Optional Scalar
@@ -817,25 +839,26 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
 
   // MARK: - Inline Fragments
 
-  func test__inlineFragment__withoutExplicitTypeNameSelection_selectsTypenameField() throws {
+  func test__inlineFragment__withoutTypenameMatchingCondition_selectsTypeCaseField() throws {
     // given
     struct Types {
       static let Human = Object(typename: "Human", implementedInterfaces: [])
       static let MockChildObject = Object(typename: "MockChildObject", implementedInterfaces: [])
     }
 
-    class GivenSelectionSet: MockSelectionSet, SelectionSet {
+    class GivenSelectionSet: MockSelectionSet {
       typealias Schema = MockSchemaMetadata
       override class var __parentType: ParentType { Object.mock }
       override class var __selections: [Selection] {[
         .field("child", Child.self),
       ]}
 
-      class Child: MockSelectionSet, SelectionSet {
+      class Child: MockSelectionSet {
         typealias Schema = MockSchemaMetadata
 
         override class var __parentType: ParentType { Types.MockChildObject }
         override class var __selections: [Selection] {[
+          .field("__typename", String.self),
           .inlineFragment(AsHuman.self)
         ]}
 
@@ -894,9 +917,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
       }
     }
 
-    class GivenSelectionSet: MockSelectionSet, SelectionSet {
-      typealias Schema = MockSchemaMetadata
-
+    class GivenSelectionSet: AbstractMockSelectionSet<GivenSelectionSet.Fragments, MockSchemaMetadata> {
       override class var __parentType: ParentType { Types.MockChildObject }
       override class var __selections: [Selection] {[
         .fragment(GivenFragment.self)
@@ -906,7 +927,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
         let __data: DataDict
         var childFragment: GivenFragment { _toFragment() }
 
-        init(data: DataDict) { __data = data }
+        init(_dataDict: DataDict) { __data = _dataDict }
       }
     }
 
@@ -931,6 +952,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
   // MARK: - Boolean Conditions
 
   // MARK: Include
+
   func test__booleanCondition_include_singleField__givenVariableIsTrue_getsValueForConditionalField() throws {
     // given
     class GivenSelectionSet: MockSelectionSet {
@@ -957,6 +979,40 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
     }
     let object: JSONObject = ["name": "Luke Skywalker"]
     let variables = ["variable": false]
+
+    // when
+    let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
+
+    // then
+    expect(data.name).to(beNil())
+  }
+
+  func test__booleanCondition_include_singleField__givenGraphQLNullableVariableIsTrue_getsValueForConditionalField() throws {
+    // given
+    class GivenSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] {[
+        .include(if: "variable", .field("name", String.self))
+      ]}
+    }
+    let object: JSONObject = ["name": "Luke Skywalker"]
+    let variables = ["variable": GraphQLNullable<Bool>(true)]
+
+    // when
+    let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
+
+    // then
+    expect(data.name).to(equal("Luke Skywalker"))
+  }
+
+  func test__booleanCondition_include_singleField__givenGraphQLNullableVariableIsFalse_doesNotGetsValueForConditionalField() throws {
+    // given
+    class GivenSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] {[
+        .include(if: "variable", .field("name", String.self))
+      ]}
+    }
+    let object: JSONObject = ["name": "Luke Skywalker"]
+    let variables = ["variable": GraphQLNullable<Bool>(false)]
 
     // when
     let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
@@ -1303,6 +1359,7 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
   }
 
   // MARK: Skip
+
   func test__booleanCondition_skip_singleField__givenVariableIsFalse_getsValueForConditionalField() throws {
     // given
     class GivenSelectionSet: MockSelectionSet {
@@ -1329,6 +1386,40 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
     }
     let object: JSONObject = ["name": "Luke Skywalker"]
     let variables = ["variable": true]
+
+    // when
+    let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
+
+    // then
+    expect(data.name).to(beNil())
+  }
+
+  func test__booleanCondition_skip_singleField__givenGraphQLNullableVariableIsFalse_getsValueForConditionalField() throws {
+    // given
+    class GivenSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] {[
+        .include(if: !"variable", .field("name", String.self))
+      ]}
+    }
+    let object: JSONObject = ["name": "Luke Skywalker"]
+    let variables = ["variable": GraphQLNullable<Bool>(false)]
+
+    // when
+    let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
+
+    // then
+    expect(data.name).to(equal("Luke Skywalker"))
+  }
+
+  func test__booleanCondition_skip_singleField__givenGraphQLNullableVariableIsTrue_doesNotGetsValueForConditionalField() throws {
+    // given
+    class GivenSelectionSet: MockSelectionSet {
+      override class var __selections: [Selection] {[
+        .include(if: !"variable", .field("name", String.self))
+      ]}
+    }
+    let object: JSONObject = ["name": "Luke Skywalker"]
+    let variables = ["variable": GraphQLNullable<Bool>(true)]
 
     // when
     let data = try readValues(GivenSelectionSet.self, from: object, variables: variables)
@@ -1676,5 +1767,79 @@ class GraphQLExecutor_SelectionSetMapper_FromResponse_Tests: XCTestCase {
         expect(data.name).to(beNil())
       }
     }
+  }
+
+  // MARK: Fulfilled Fragment Tests
+
+  func test__nestedEntity_andTypeCaseWithAdditionalMergedNestedEntityFields_givenChildEntityCanConvertToTypeCase_fulfilledFragmentsContainsTypeCase() throws {
+    struct Types {
+      static let Character = Interface(name: "Character")
+      static let Hero = Interface(name: "Hero")
+      static let Human = Object(typename: "Human", implementedInterfaces: [Character.self, Hero.self])
+    }
+
+    MockSchemaMetadata.stub_objectTypeForTypeName = {
+      switch $0 {
+      case "Human": return Types.Human
+      default: XCTFail(); return nil
+      }
+    }
+
+    class Character: MockSelectionSet {
+      typealias Schema = MockSchemaMetadata
+
+      override class var __parentType: ParentType { Types.Character }
+      override class var __selections: [Selection] {[
+        .field("__typename", String.self),
+        .field("friend", Friend.self),
+        .inlineFragment(AsHero.self)
+      ]}
+
+      var friend: Friend { __data["friend"] }
+
+      class Friend: MockSelectionSet {
+        typealias Schema = MockSchemaMetadata
+
+        override class var __parentType: ParentType { Types.Character }
+        override class var __selections: [Selection] {[
+          .field("__typename", String.self),
+        ]}
+      }
+
+      class AsHero: ConcreteMockTypeCase<Character> {
+        typealias Schema = MockSchemaMetadata
+
+        override class var __parentType: ParentType { Types.Hero }
+        override class var __selections: [Selection] {[
+          .field("friend", Friend.self),
+        ]}
+
+        var friend: Friend { __data["friend"] }
+
+        class Friend: MockSelectionSet {
+          typealias Schema = MockSchemaMetadata
+
+          override class var __parentType: ParentType { Types.Character }
+          override class var __selections: [Selection] {[
+            .field("heroName", String.self),
+          ]}
+
+          var heroName: String? { __data["heroName"] }
+        }
+      }
+
+    }
+
+    let jsonObject: JSONObject = [
+      "__typename": "Human", "friend": [
+        "__typename": "Human",
+        "name": "Han",
+        "heroName": "Han Solo"
+      ]
+    ]
+
+    let data = try Character(data: jsonObject)
+    expect(data.friend.__data.fragmentIsFulfilled(Character.Friend.self)).to(beTrue())
+    expect(data.friend.__data.fragmentIsFulfilled(Character.AsHero.Friend.self)).to(beTrue())
   }
 }

@@ -25,29 +25,24 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
   public func parseResult() throws -> (GraphQLResult<Data>, RecordSet?) {
     let accumulator = zip(
       GraphQLSelectionSetMapper<Data>(),
-      GraphQLResultNormalizer(),
+      ResultNormalizerFactory.networkResponseDataNormalizer(),
       GraphQLDependencyTracker(),
       GraphQLFirstReceivedAtTracker()
     )
 
-    let executionResult = try execute(with: accumulator, computeCachePaths: true)
+    let executionResult = try execute(with: accumulator)
     let result = makeResult(data: executionResult?.0, dependentKeys: executionResult?.2, resultContext: executionResult?.3 ?? GraphQLResultMetadata())
     return (result, executionResult?.1)
   }
 
   private func execute<Accumulator: GraphQLResultAccumulator>(
-    with accumulator: Accumulator,
-    computeCachePaths: Bool
+    with accumulator: Accumulator
   ) throws -> Accumulator.FinalResult? {
     guard let dataEntry = body["data"] as? JSONObject else {
       return nil
     }
 
-    let executor = GraphQLExecutor { object, info in
-      return (object[info.responseKeyForField], Date())
-    }
-
-    executor.shouldComputeCachePath = computeCachePaths
+    let executor = GraphQLExecutor(executionSource: NetworkResponseExecutionSource())
 
     return try executor.execute(selectionSet: Data.self,
                                 on: dataEntry,
@@ -83,7 +78,7 @@ public final class GraphQLResponse<Data: RootSelectionSet> {
   /// This is faster than `parseResult()` and should be used when cache the response is not needed.
   public func parseResultFast() throws -> GraphQLResult<Data>  {
     let accumulator = GraphQLSelectionSetMapper<Data>()
-    let data = try execute(with: accumulator, computeCachePaths: false)
+    let data = try execute(with: accumulator)
     return makeResult(data: data, dependentKeys: nil, resultContext: GraphQLResultMetadata())
   }
 }

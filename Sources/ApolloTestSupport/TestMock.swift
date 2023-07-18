@@ -1,5 +1,6 @@
 #if !COCOAPODS
-@_exported import ApolloAPI
+@_exported @testable import ApolloAPI
+@testable import Apollo
 #endif
 import Foundation
 
@@ -14,15 +15,24 @@ public class Mock<O: MockObject>: AnyMock, Hashable {
 
   public var __typename: String { _data["__typename"] as! String }
 
-  public subscript<T: AnyScalarType & Hashable>(dynamicMember keyPath: KeyPath<O.MockFields, Field<T>>) -> T? {
+  public subscript<T: AnyScalarType & Hashable>(
+    dynamicMember keyPath: KeyPath<O.MockFields, Field<T>>
+  ) -> T? {
     get {
       let field = O._mockFields[keyPath: keyPath]
       return _data[field.key.description] as? T
     }
     set {
-      let field = O._mockFields[keyPath: keyPath]
-      _data[field.key.description] = newValue
+      _setScalar(newValue, for: keyPath)
     }
+  }
+
+  public func _setScalar<T: AnyScalarType & Hashable>(
+    _ value: T?,
+    for keyPath: KeyPath<O.MockFields, Field<T>>
+  ) {
+    let field = O._mockFields[keyPath: keyPath]
+    _data[field.key.description] = value
   }
 
   public subscript<T: MockFieldValue>(
@@ -33,9 +43,16 @@ public class Mock<O: MockObject>: AnyMock, Hashable {
       return _data[field.key.description] as? T.MockValueCollectionType.Element
     }
     set {
-      let field = O._mockFields[keyPath: keyPath]
-      _data[field.key.description] = (newValue as? AnyHashable)
+      _setEntity(newValue, for: keyPath)
     }
+  }
+
+  public func _setEntity<T: MockFieldValue>(
+    _ value: T.MockValueCollectionType.Element?,
+    for keyPath: KeyPath<O.MockFields, Field<T>>
+  ) {
+    let field = O._mockFields[keyPath: keyPath]
+    _data[field.key.description] = (value as? AnyHashable)
   }
 
   public subscript<T: MockFieldValue>(
@@ -46,9 +63,16 @@ public class Mock<O: MockObject>: AnyMock, Hashable {
       return _data[field.key.description] as? [T.MockValueCollectionType.Element]
     }
     set {
-      let field = O._mockFields[keyPath: keyPath]
-      _data[field.key.description] = newValue?._unsafelyConvertToMockValue()
+      _setList(newValue, for: keyPath)
     }
+  }
+
+  public func _setList<T: MockFieldValue>(
+    _ value: [T.MockValueCollectionType.Element]?,
+    for keyPath: KeyPath<O.MockFields, Field<Array<T>>>
+  ) {
+    let field = O._mockFields[keyPath: keyPath]
+    _data[field.key.description] = value?._unsafelyConvertToMockValue()
   }
 
   public var _selectionSetMockData: JSONObject {
@@ -56,8 +80,8 @@ public class Mock<O: MockObject>: AnyMock, Hashable {
       if let mock = $0 as? AnyMock {
         return mock._selectionSetMockData
       }
-      if let mockArray = $0 as? [AnyMock?] {
-        return mockArray.map(\.?._selectionSetMockData)
+      if let mockArray = $0 as? Array<Any> {
+        return mockArray._unsafelyConvertToSelectionSetData()
       }
       return $0
     }
@@ -76,12 +100,21 @@ public class Mock<O: MockObject>: AnyMock, Hashable {
 
 // MARK: - Selection Set Conversion
 
-public extension SelectionSet {
-  static func from(
-    _ mock: AnyMock,
+public extension RootSelectionSet {
+  static func from<O: MockObject>(
+    _ mock: Mock<O>,
     withVariables variables: GraphQLOperation.Variables? = nil
   ) -> Self {
-    Self.init(data: DataDict(mock._selectionSetMockData, variables: variables))
+    let accumulator = TestMockSelectionSetMapper<Self>()
+    let executor = GraphQLExecutor(executionSource: NetworkResponseExecutionSource())
+
+    return try! executor.execute(
+      selectionSet: Self.self,
+      on: mock._selectionSetMockData,
+      firstReceivedAt: Date(),
+      variables: variables,
+      accumulator: accumulator
+    )
   }
 }
 
@@ -128,6 +161,24 @@ fileprivate extension Array {
 
       case let innerArray as Array<Any>:
         return innerArray._unsafelyConvertToMockValue()
+
+      default:
+        return nil
+      }
+    }
+  }
+
+  func _unsafelyConvertToSelectionSetData() -> [AnyHashable?] {
+    map { element in
+      switch element {
+      case let element as AnyMock:
+        return element._selectionSetMockData
+
+      case let innerArray as Array<Any>:
+        return innerArray._unsafelyConvertToSelectionSetData()
+
+      case let element as AnyHashable:
+        return element
 
       default:
         return nil

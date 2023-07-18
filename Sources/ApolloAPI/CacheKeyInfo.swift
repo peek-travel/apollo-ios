@@ -12,7 +12,7 @@
 /// For an object of the type `Dog` with a unique id represented by an `id` field, you may
 /// implement cache key resolution with:
 /// ```swift
-/// public extension MySchema {
+/// enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
 ///   static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
 ///     switch type {
 ///     case Objects.Dog:
@@ -31,7 +31,7 @@
 /// For example, for a schema with `Dog` and `Cat` ``Object`` types that implement a `Pet`
 /// ``Interface``, you may implement cache key resolution with:
 /// ```swift
-/// public extension MySchema {
+/// enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
 ///   static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
 ///     if type.implements(Interfaces.Pet) {
 ///       return try? CacheKeyInfo(jsonValue: object["id"])
@@ -47,7 +47,7 @@
 /// ``Interface``, you may want to group them together in the cache. See ``uniqueKeyGroup`` for
 /// more information on the benefits of grouping cached objects.
 /// ```swift
-/// public extension MySchema {
+/// enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
 ///   static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
 ///     if type.implements(Interfaces.Pet) {
 ///       return try? CacheKeyInfo(jsonValue: object["id"], uniqueKeyGroup: Interfaces.Pet.name)
@@ -95,14 +95,15 @@ public struct CacheKeyInfo {
   ///
   /// - Parameters:
   ///   - jsonValue: The value of a field on a ``JSONObject`` to use as the cache ``id``.
+  ///                This must be a scalar type to be used as a cache id. 
   ///   - uniqueKeyGroup: An optional ``uniqueKeyGroup`` for the ``CacheKeyInfo``.
   ///     Defaults to `nil`.
-  @inlinable public init(jsonValue: JSONValue?, uniqueKeyGroup: String? = nil) throws {
+  @inlinable public init(jsonValue: (any ScalarType)?, uniqueKeyGroup: String? = nil) throws {
     guard let jsonValue = jsonValue else {
       throw JSONDecodingError.missingValue
     }
 
-    self.init(id: try String(_jsonValue: jsonValue), uniqueKeyGroup: uniqueKeyGroup)
+    self.init(id: try String(_jsonValue: jsonValue._asAnyHashable), uniqueKeyGroup: uniqueKeyGroup)
   }
 
   /// The Designated Initializer

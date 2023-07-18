@@ -60,14 +60,14 @@ class FragmentTemplateTests: XCTestCase {
     subject.template.description
   }
 
-  // MARK: - Fragment Definition
+  // MARK: Fragment Definition
 
   func test__render__givenFragment_generatesFragmentDeclarationDefinitionAndBoilerplate() throws {
     // given
     let expected =
     """
     struct TestFragment: TestSchema.SelectionSet, Fragment {
-      public static var fragmentDefinition: StaticString { ""\"
+      static var fragmentDefinition: StaticString { ""\"
         fragment TestFragment on Query {
           __typename
           allAnimals {
@@ -77,8 +77,8 @@ class FragmentTemplateTests: XCTestCase {
         }
         ""\" }
 
-      public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      let __data: DataDict
+      init(_dataDict: DataDict) { __data = _dataDict }
     """
 
     // when
@@ -89,51 +89,6 @@ class FragmentTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
     expect(String(actual.reversed())).to(equalLineByLine("\n}", ignoringExtraLines: true))
-  }
-
-  func test__render__givenModuleType_swiftPackageManager_generatesFragmentDefinition_withPublicModifier() throws {
-    // given
-    try buildSubjectAndFragment(config: .mock(.swiftPackageManager))
-
-    let expected = """
-    public struct TestFragment: TestSchema.SelectionSet, Fragment {
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
-  }
-
-  func test__render__givenModuleType_other_generatesFragmentDefinition_withPublicModifier() throws {
-    // given
-    try buildSubjectAndFragment(config: .mock(.other))
-
-    let expected = """
-    public struct TestFragment: TestSchema.SelectionSet, Fragment {
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
-  }
-
-  func test__render__givenModuleType_embeddedInTarget_generatesFragmentDefinition_noPublicModifier() throws {
-    // given
-    try buildSubjectAndFragment(config: .mock(.embeddedInTarget(name: "TestTarget")))
-
-    let expected = """
-    struct TestFragment: TestSchema.SelectionSet, Fragment {
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
   }
 
   func test__render__givenLowercaseFragment_generatesTitleCaseTypeName() throws {
@@ -149,7 +104,7 @@ class FragmentTemplateTests: XCTestCase {
     let expected =
     """
     struct TestFragment: TestSchema.SelectionSet, Fragment {
-      public static var fragmentDefinition: StaticString { ""\"
+      static var fragmentDefinition: StaticString { ""\"
         fragment testFragment on Query {
     """
 
@@ -211,7 +166,7 @@ class FragmentTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Animal }
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Animal }
     """
 
     // when
@@ -241,7 +196,7 @@ class FragmentTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public static var __parentType: ApolloAPI.ParentType { TestSchema.Interfaces.Animal }
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Interfaces.Animal }
     """
 
     // when
@@ -275,7 +230,7 @@ class FragmentTemplateTests: XCTestCase {
     """
 
     let expected = """
-      public static var __parentType: ApolloAPI.ParentType { TestSchema.Unions.Animal }
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Unions.Animal }
     """
 
     // when
@@ -286,10 +241,10 @@ class FragmentTemplateTests: XCTestCase {
     expect(actual).to(equalLineByLine(expected, atLine: 14, ignoringExtraLines: true))
   }
 
-  func test__render__givenFragmentWithOnlyTypenameField_generatesFragmentDefinition_withNoSelections() throws {
+  func test__render__givenFragmentOnRootOperationTypeWithOnlyTypenameField_generatesFragmentDefinition_withNoSelections() throws {
     // given
     document = """
-    fragment TestFragment on Animal {
+    fragment TestFragment on Query {
       __typename
     }
     """
@@ -298,17 +253,17 @@ class FragmentTemplateTests: XCTestCase {
 
     let expected = """
     struct TestFragment: TestSchema.SelectionSet, Fragment {
-      public static var fragmentDefinition: StaticString { ""\"
-        fragment TestFragment on Animal {
+      static var fragmentDefinition: StaticString { ""\"
+        fragment TestFragment on Query {
           __typename
         }
         ""\" }
 
-      public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      let __data: DataDict
+      init(_dataDict: DataDict) { __data = _dataDict }
 
-      public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Animal }
-      public static var __selections: [ApolloAPI.Selection] { [
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Query }
+      static var __selections: [ApolloAPI.Selection] { [
       ] }
     }
 
@@ -321,7 +276,316 @@ class FragmentTemplateTests: XCTestCase {
     expect(actual).to(equalLineByLine(expected))
   }
 
-  /// MARK: - Local Cache Mutation Tests
+  func test__render__givenFragmentWithOnlyTypenameField_generatesFragmentDefinition_withTypeNameSelection() throws {
+    // given
+    document = """
+    fragment TestFragment on Animal {
+      __typename
+    }
+    """
+
+    try buildSubjectAndFragment()
+
+    let expected = """
+    struct TestFragment: TestSchema.SelectionSet, Fragment {
+      static var fragmentDefinition: StaticString { ""\"
+        fragment TestFragment on Animal {
+          __typename
+        }
+        ""\" }
+
+      let __data: DataDict
+      init(_dataDict: DataDict) { __data = _dataDict }
+
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Animal }
+      static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
+      ] }
+    }
+
+    """
+
+    // when
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected))
+  }
+
+  // MARK: Access Level Tests
+
+  func test__render__givenModuleType_swiftPackageManager_generatesFragmentDefinition_withPublicAccess() throws {
+    // given
+    try buildSubjectAndFragment(config: .mock(.swiftPackageManager))
+
+    let expected = """
+    public struct TestFragment: TestSchema.SelectionSet, Fragment {
+      public static var fragmentDefinition: StaticString { ""\"
+    """
+
+    // when
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+  }
+
+  func test__render__givenModuleType_other_generatesFragmentDefinition_withPublicAccess() throws {
+    // given
+    try buildSubjectAndFragment(config: .mock(.other))
+
+    let expected = """
+    public struct TestFragment: TestSchema.SelectionSet, Fragment {
+      public static var fragmentDefinition: StaticString { ""\"
+    """
+
+    // when
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+  }
+
+  func test__render__givenModuleType_embeddedInTarget_withInternalAccessModifier_generatesFragmentDefinition_withInternalAccess() throws {
+    // given
+    try buildSubjectAndFragment(
+      config: .mock(.embeddedInTarget(name: "TestTarget", accessModifier: .internal))
+    )
+
+    let expected = """
+    struct TestFragment: TestSchema.SelectionSet, Fragment {
+      static var fragmentDefinition: StaticString { ""\"
+    """
+
+    // when
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+  }
+
+  func test__render__givenModuleType_embeddedInTarget_withPublicAccessModifier_generatesFragmentDefinition_withPublicAccess() throws {
+    // given
+    try buildSubjectAndFragment(
+      config: .mock(.embeddedInTarget(name: "TestTarget", accessModifier: .public))
+    )
+
+    let expected = """
+    struct TestFragment: TestSchema.SelectionSet, Fragment {
+      public static var fragmentDefinition: StaticString { ""\"
+    """
+
+    // when
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+  }
+
+  // MARK: Initializer Tests
+
+  func test__render_givenInitializerConfigIncludesNamedFragments_rendersInitializer() throws {
+    // given
+    schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+    document = """
+      fragment TestFragment on Animal {
+        species
+      }
+      """
+
+    let expected =
+      """
+        init(
+          species: String
+        ) {
+          self.init(_dataDict: DataDict(
+            data: [
+              "__typename": TestSchema.Objects.Animal.typename,
+              "species": species,
+            ],
+            fulfilledFragments: [
+              ObjectIdentifier(TestFragment.self)
+            ]
+          ))
+        }
+      """
+
+    // when
+    try buildSubjectAndFragment(
+      config: .mock(options: .init(
+        selectionSetInitializers: [.namedFragments]
+      )))
+
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 20, ignoringExtraLines: true))
+  }
+
+  func test__render_givenNamedFragment_configIncludesSpecificFragment_rendersInitializer() throws {
+    // given
+    schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+    document = """
+      fragment TestFragment on Animal {
+        species
+      }
+      """
+
+    let expected =
+      """
+        init(
+          species: String
+        ) {
+          self.init(_dataDict: DataDict(
+            data: [
+              "__typename": TestSchema.Objects.Animal.typename,
+              "species": species,
+            ],
+            fulfilledFragments: [
+              ObjectIdentifier(TestFragment.self)
+            ]
+          ))
+        }
+      """
+
+    // when
+    try buildSubjectAndFragment(
+      config: .mock(options: .init(
+        selectionSetInitializers: [.fragment(named: "TestFragment")]
+      )))
+
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 20, ignoringExtraLines: true))
+  }
+
+  func test__render_givenNamedFragment_configDoesNotIncludeNamedFragments_doesNotRenderInitializer() throws {
+    // given
+    schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+    document = """
+      fragment TestFragment on Animal {
+        species
+      }
+      """
+
+    // when
+    try buildSubjectAndFragment(
+      config: .mock(options: .init(
+        selectionSetInitializers: [.operations]
+      )))
+
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine("}", atLine: 19, ignoringExtraLines: true))
+  }
+
+  func test__render_givenNamedFragments_configIncludeSpecificFragmentWithOtherName_doesNotRenderInitializer() throws {
+    // given
+    schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+    document = """
+      fragment TestFragment on Animal {
+        species
+      }
+      """
+
+    // when
+    try buildSubjectAndFragment(
+      config: .mock(options: .init(
+        selectionSetInitializers: [.fragment(named: "OtherFragment")]
+      )))
+
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine("}", atLine: 19, ignoringExtraLines: true))
+  }
+
+  func test__render_givenNamedFragments_asLocalCacheMutation_configIncludeLocalCacheMutations_rendersInitializer() throws {
+    // given
+    schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+    document = """
+      fragment TestFragment on Animal @apollo_client_ios_localCacheMutation {
+        species
+      }
+      """
+
+    let expected =
+      """
+        init(
+          species: String
+        ) {
+          self.init(_dataDict: DataDict(
+            data: [
+              "__typename": TestSchema.Objects.Animal.typename,
+              "species": species,
+            ],
+            fulfilledFragments: [
+              ObjectIdentifier(TestFragment.self)
+            ]
+          ))
+        }
+      """
+
+    // when
+    try buildSubjectAndFragment(
+      config: .mock(options: .init(
+        selectionSetInitializers: [.localCacheMutations]
+      )))
+
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 23, ignoringExtraLines: true))
+  }
+
+  // MARK: Local Cache Mutation Tests
   func test__render__givenFragment__asLocalCacheMutation_generatesFragmentDeclarationDefinitionAsMutableSelectionSetAndBoilerplate() throws {
     // given
     document = """
@@ -360,7 +624,7 @@ class FragmentTemplateTests: XCTestCase {
     let expected =
     """
     struct TestFragment: TestSchema.MutableSelectionSet, Fragment {
-      public static var fragmentDefinition: StaticString { ""\"
+      static var fragmentDefinition: StaticString { ""\"
         fragment TestFragment on Query {
           __typename
           allAnimals {
@@ -393,15 +657,15 @@ class FragmentTemplateTests: XCTestCase {
 
     let expected =
     """
-      public var __data: DataDict
-      public init(data: DataDict) { __data = data }
+      var __data: DataDict
+      init(_dataDict: DataDict) { __data = _dataDict }
 
-      public static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Query }
-      public static var __selections: [ApolloAPI.Selection] { [
+      static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Query }
+      static var __selections: [ApolloAPI.Selection] { [
         .field("allAnimals", [AllAnimal]?.self),
       ] }
 
-      public var allAnimals: [AllAnimal]? {
+      var allAnimals: [AllAnimal]? {
         get { __data["allAnimals"] }
         set { __data["allAnimals"] = newValue }
       }
@@ -420,7 +684,7 @@ class FragmentTemplateTests: XCTestCase {
 
   func test__casing__givenLowercasedSchemaName_generatesWithFirstUppercasedNamespace() throws {
     // given
-    try buildSubjectAndFragment(config: .mock(schemaName: "mySchema"))
+    try buildSubjectAndFragment(config: .mock(schemaNamespace: "mySchema"))
 
     // then
     let expected = """
@@ -434,7 +698,7 @@ class FragmentTemplateTests: XCTestCase {
 
   func test__casing__givenUppercasedSchemaName_generatesWithUppercasedNamespace() throws {
     // given
-    try buildSubjectAndFragment(config: .mock(schemaName: "MY_SCHEMA"))
+    try buildSubjectAndFragment(config: .mock(schemaNamespace: "MY_SCHEMA"))
 
     // then
     let expected = """
@@ -448,7 +712,7 @@ class FragmentTemplateTests: XCTestCase {
 
   func test__casing__givenCapitalizedSchemaName_generatesWithCapitalizedNamespace() throws {
     // given
-    try buildSubjectAndFragment(config: .mock(schemaName: "MySchema"))
+    try buildSubjectAndFragment(config: .mock(schemaNamespace: "MySchema"))
 
     // then
     let expected = """
@@ -459,4 +723,42 @@ class FragmentTemplateTests: XCTestCase {
 
     expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
   }
+  
+  // MARK: - Reserved Keyword Tests
+  
+  func test__render__givenFragmentReservedKeywordName_rendersEscapedName() throws {
+    let keywords = ["Type", "type"]
+    
+    try keywords.forEach { keyword in
+      // given
+      schemaSDL = """
+      type Query {
+        getUser(id: String): User
+      }
+
+      type User {
+        id: String!
+        name: String!
+      }
+      """
+
+      document = """
+      fragment \(keyword) on User {
+          name
+      }
+      """
+
+      let expected = """
+      struct \(keyword.firstUppercased)_Fragment: TestSchema.SelectionSet, Fragment {
+      """
+
+      // when
+      try buildSubjectAndFragment(named: keyword)
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+    }
+  }
+  
 }

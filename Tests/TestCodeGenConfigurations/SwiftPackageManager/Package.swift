@@ -3,35 +3,38 @@
 import PackageDescription
 
 let package = Package(
-  name: "GraphQLSchemaName",
+  name: "TestApp",
   platforms: [
     .iOS(.v12),
-    .macOS(.v10_14),
+    .macOS(.v10_15),
     .tvOS(.v12),
     .watchOS(.v5),
   ],
   products: [
-    .library(name: "GraphQLSchemaName", targets: ["GraphQLSchemaName"]),
-    .library(name: "GraphQLSchemaNameTestMocks", targets: ["GraphQLSchemaNameTestMocks"]),
+    .library(name: "TestApp", targets: ["TestApp"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/apollographql/apollo-ios.git", from: "1.0.0"),
+    .package(name: "apollo-ios", path: "../../../"),
+    .package(name: "AnimalKingdomAPI", path: "./AnimalKingdomAPI")
   ],
   targets: [
     .target(
-      name: "GraphQLSchemaName",
+      name: "TestApp",
       dependencies: [
-        .product(name: "ApolloAPI", package: "apollo-ios"),
+        .product(name: "Apollo", package: "apollo-ios"),
+        .product(name: "AnimalKingdomAPI", package: "AnimalKingdomAPI")
       ],
-      path: "./Sources"
+      swiftSettings: [
+        .unsafeFlags(["-warnings-as-errors"])
+      ]
     ),
-    .target(
-      name: "GraphQLSchemaNameTestMocks",
+    .testTarget(
+      name: "SwiftPackageTests",
       dependencies: [
+        .product(name: "Apollo", package: "apollo-ios"),
         .product(name: "ApolloTestSupport", package: "apollo-ios"),
-        .target(name: "GraphQLSchemaName"),
-      ],
-      path: "./TestMocks"
-    ),
+        .product(name: "AnimalKingdomAPITestMocks", package: "AnimalKingdomAPI")
+      ]
+    )
   ]
 )

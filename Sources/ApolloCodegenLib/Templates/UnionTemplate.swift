@@ -14,7 +14,7 @@ struct UnionTemplate: TemplateRenderer {
     TemplateString(
     """
     \(documentation: graphqlUnion.documentation, config: config)
-    static let \(graphqlUnion.name.firstUppercased) = Union(
+    static let \(graphqlUnion.formattedName) = Union(
       name: "\(graphqlUnion.name)",
       possibleTypes: \(PossibleTypesTemplate())
     )
@@ -30,8 +30,8 @@ struct UnionTemplate: TemplateRenderer {
     _ type: GraphQLObjectType
   ) -> TemplateString {
     """
-    \(if: !config.output.schemaTypes.isInModule, "\(config.schemaName.firstUppercased).")\
-    Objects.\(type.name.firstUppercased).self
+    \(if: !config.output.schemaTypes.isInModule, "\(config.schemaNamespace.firstUppercased).")\
+    Objects.\(type.formattedName).self
     """
   }
 

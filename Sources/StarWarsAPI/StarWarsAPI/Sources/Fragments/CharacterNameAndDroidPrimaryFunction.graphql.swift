@@ -13,10 +13,11 @@ public struct CharacterNameAndDroidPrimaryFunction: StarWarsAPI.SelectionSet, Fr
     """ }
 
   public let __data: DataDict
-  public init(data: DataDict) { __data = data }
+  public init(_dataDict: DataDict) { __data = _dataDict }
 
   public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Interfaces.Character }
   public static var __selections: [ApolloAPI.Selection] { [
+    .field("__typename", String.self),
     .inlineFragment(AsDroid.self),
     .fragment(CharacterName.self),
   ] }
@@ -28,9 +29,25 @@ public struct CharacterNameAndDroidPrimaryFunction: StarWarsAPI.SelectionSet, Fr
 
   public struct Fragments: FragmentContainer {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public var characterName: CharacterName { _toFragment() }
+  }
+
+  public init(
+    __typename: String,
+    name: String
+  ) {
+    self.init(_dataDict: DataDict(
+      data: [
+        "__typename": __typename,
+        "name": name,
+      ],
+      fulfilledFragments: [
+        ObjectIdentifier(CharacterNameAndDroidPrimaryFunction.self),
+        ObjectIdentifier(CharacterName.self)
+      ]
+    ))
   }
 
   /// AsDroid
@@ -38,8 +55,9 @@ public struct CharacterNameAndDroidPrimaryFunction: StarWarsAPI.SelectionSet, Fr
   /// Parent Type: `Droid`
   public struct AsDroid: StarWarsAPI.InlineFragment {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
+    public typealias RootEntityType = CharacterNameAndDroidPrimaryFunction
     public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Objects.Droid }
     public static var __selections: [ApolloAPI.Selection] { [
       .fragment(DroidPrimaryFunction.self),
@@ -52,10 +70,29 @@ public struct CharacterNameAndDroidPrimaryFunction: StarWarsAPI.SelectionSet, Fr
 
     public struct Fragments: FragmentContainer {
       public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      public init(_dataDict: DataDict) { __data = _dataDict }
 
       public var droidPrimaryFunction: DroidPrimaryFunction { _toFragment() }
       public var characterName: CharacterName { _toFragment() }
+    }
+
+    public init(
+      name: String,
+      primaryFunction: String? = nil
+    ) {
+      self.init(_dataDict: DataDict(
+        data: [
+          "__typename": StarWarsAPI.Objects.Droid.typename,
+          "name": name,
+          "primaryFunction": primaryFunction,
+        ],
+        fulfilledFragments: [
+          ObjectIdentifier(CharacterNameAndDroidPrimaryFunction.self),
+          ObjectIdentifier(CharacterNameAndDroidPrimaryFunction.AsDroid.self),
+          ObjectIdentifier(CharacterName.self),
+          ObjectIdentifier(DroidPrimaryFunction.self)
+        ]
+      ))
     }
   }
 }

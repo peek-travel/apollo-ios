@@ -14,8 +14,8 @@ struct EnumTemplate: TemplateRenderer {
     TemplateString(
     """
     \(documentation: graphqlEnum.documentation, config: config)
-    \(embeddedAccessControlModifier)\
-    enum \(graphqlEnum.name.firstUppercased): String, EnumType {
+    \(accessControlModifier(for: .parent))\
+    enum \(graphqlEnum.formattedName): String, EnumType {
       \(graphqlEnum.values.compactMap({
         enumCase(for: $0)
       }), separator: "\n")
@@ -37,7 +37,7 @@ struct EnumTemplate: TemplateRenderer {
     \(if: shouldRenderDocumentation, "\(forceDocumentation: graphqlEnumValue.documentation)")
     \(ifLet: graphqlEnumValue.deprecationReason, { """
       \(if: shouldRenderDocumentation, "///")
-      \(forceDocumentation: "**Deprecated**: \($0)")
+      \(forceDocumentation: "**Deprecated**: \($0.escapedSwiftStringSpecialCharacters())")
       """ })
     \(caseDefinition(for: graphqlEnumValue))
     """

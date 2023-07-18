@@ -5,6 +5,8 @@ public class CompilationResult: JavaScriptObject {
   private enum Constants {
     static let LocalCacheMutationDirectiveName = "apollo_client_ios_localCacheMutation"
   }
+  lazy var rootTypes: RootTypeDefinition = self["rootTypes"]
+  
   lazy var referencedTypes: [GraphQLNamedType] = self["referencedTypes"]
 
   lazy var operations: [OperationDefinition] = self["operations"]
@@ -13,7 +15,15 @@ public class CompilationResult: JavaScriptObject {
 
   lazy var schemaDocumentation: String? = self["schemaDocumentation"]
   
-  public class OperationDefinition: JavaScriptObject, Equatable {
+  public class RootTypeDefinition: JavaScriptObject {
+    lazy var queryType: GraphQLNamedType = self["queryType"]
+    
+    lazy var mutationType: GraphQLNamedType? = self["mutationType"]
+    
+    lazy var subscriptionType: GraphQLNamedType? = self["subscriptionType"]
+  }
+  
+  public class OperationDefinition: JavaScriptObject, Hashable {
     lazy var name: String = self["name"]
     
     lazy var operationType: OperationType = self["operationType"]
@@ -34,6 +44,10 @@ public class CompilationResult: JavaScriptObject {
       "\(name) on \(rootType.debugDescription)"
     }
 
+    public func hash(into hasher: inout Hasher) {
+      hasher.combine(name)
+    }
+    
     public static func ==(lhs: OperationDefinition, rhs: OperationDefinition) -> Bool {
       return lhs.name == rhs.name
     }

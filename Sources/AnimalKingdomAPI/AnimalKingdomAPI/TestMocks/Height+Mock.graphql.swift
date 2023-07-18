@@ -27,10 +27,10 @@ public extension Mock where O == Height {
     relativeSize: GraphQLEnum<AnimalKingdomAPI.RelativeSize>? = nil
   ) {
     self.init()
-    self.centimeters = centimeters
-    self.feet = feet
-    self.inches = inches
-    self.meters = meters
-    self.relativeSize = relativeSize
+    _setScalar(centimeters, for: \.centimeters)
+    _setScalar(feet, for: \.feet)
+    _setScalar(inches, for: \.inches)
+    _setScalar(meters, for: \.meters)
+    _setScalar(relativeSize, for: \.relativeSize)
   }
 }

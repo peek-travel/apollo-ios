@@ -1,5 +1,148 @@
 # Change Log
 
+## v1.3.1
+
+### Fixed
+- **Fix crashes in test mocks when setting an array of union types ([#3023](https://github.com/apollographql/apollo-ios/pull/3023)):** See PR ([#3089](https://github.com/apollographql/apollo-ios/pull/3089)). _Thank you to [@jabeattie](https://github.com/jabeattie) & [@scottasoutherland](https://github.com/scottasoutherland) for raising the issue._
+
+### Deprecated
+- **Deprecated `APQConfig` & `operationIdentifiersPath` in `ApolloCodegenConfiguration`:** These have been replaced with `OperationDocumentFormat` and `OperationManifestFileOutput` respectively. Please see the documentation for [`ApolloCodegenConfiguration`](https://www.apollographql.com/docs/ios/code-generation/codegen-configuration) for more information. 
+
+## v1.3.0
+
+Though `1.3.0` is a minor version bump, some critical issues were addressed in this version that requires a small breaking change during the upgrade.  While we strive to make the upgrade path for minor versions seamless, these issues could not be reasonably resolved without requiring this migration.
+
+For a detailed explanation of the breaking changes and a guide on how to migrate to `1.3.0`, see our [migration guide](https://www.apollographql.com/docs/ios/migrations/1.3).
+
+### Breaking
+- **Using reserved keyword `Type` as in selection fields does not compile ([#3006](https://github.com/apollographql/apollo-ios/issues/3006)):** See PR [#3058](https://github.com/apollographql/apollo-ios/pull/3058). _Thank you to [@Nielssg](https://github.com/Nielssg) for raising the issue._
+- **Memory leak from `InterceptorRequestChain` when ending the chain with `returnValueAsync` ([#3057](https://github.com/apollographql/apollo-ios/issues/3057)):** See PR [#3070](https://github.com/apollographql/apollo-ios/pull/3070). _Thank you to [@marksvend](https://github.com/marksvend) for raising the issue._
+
+## v1.2.2
+
+### Added
+- **Support SOCKS proxies for debugging websocket based subscriptions([#2788](https://github.com/apollographql/apollo-ios/issues/2788)):** _Thank you to [@tahirmit](https://github.com/tahirmt) for the contribution._ 
+
+### Fixed
+- **Fix conversion of generated models into nested type cases ([#2989](https://github.com/apollographql/apollo-ios/issues/2989) & [#2980](https://github.com/apollographql/apollo-ios/issues/2980)):** In some cases, the generated models were missing types when calculating which fragments were fulfilled for a selection set. This was causing type case conversion to return `nil` incorrectly. See PR [#3067](https://github.com/apollographql/apollo-ios/pull/3067). _Thank you to [@tgyhlsb](https://github.com/tgyhlsb) and [@dafurman](https://github.com/dafurman) for raising these issues._
+- **Fix crashes in code generation when merging fragments at definition root ([#3071](https://github.com/apollographql/apollo-ios/issues/3071)):** When fragments with type conditions were defined on the root of an operation or named fragment, the code generation engine was crashing. See PR [#3073](https://github.com/apollographql/apollo-ios/pull/3073). _Thank you to [@tahirmit](https://github.com/tahirmt) for raising and helping us reproduce this issue._
+- **Fix parsing of input objects as default values for input params ([#2978](https://github.com/apollographql/apollo-ios/issues/2978)):** The codegen engine will no longer crash in this situation. _Thank you to [@ecunha-ta](https://github.com/ecunha-ta) for raising the issue._
+
+## v1.2.1
+
+### Improved
+- **Added new validation to alert users to type naming conflict when running code generation([#2405](https://github.com/apollographql/apollo-ios/issues/2405)):** See PR [#3041](https://github.com/apollographql/apollo-ios/pull/3041).
+
+### Fixed
+- **Int values failing to cast to Scalar Type during cache key resolution ([#3034](https://github.com/apollographql/apollo-ios/issues/3034)):** See PR [#3037](https://github.com/apollographql/apollo-ios/pull/3037). _Thank you to [@asbhat](https://github.com/asbhat) for raising the issue._
+- **Fix malformed RootEntityType on generated fragment with `@include` condition. ([#2962](https://github.com/apollographql/apollo-ios/issues/2962)):** See PR [#3045](https://github.com/apollographql/apollo-ios/pull/3045). _Thank you to [@alexisbronchart](https://github.com/alexisbronchart) for raising the issue._
+
+
+## v1.2
+
+Though 1.2 is a minor version bump, a critical problem was addressed in this version that requires a small breaking change during the upgrade.  While we strive to make the upgrade path for minor versions seamless, this issue could not be reasonably resolved without requiring this migration.
+
+**For most users, this migration will only require a single change to your `SchemaConfiguration.swift` file.**
+
+For a detailed explanation of the breaking changes and a guide on how to migrate to v1.2, see our [migration guide](https://www.apollographql.com/docs/ios/migrations/1.2).
+
+### Breaking
+- **Cache Key Configuration API Changes ([#2990](https://github.com/apollographql/apollo-ios/pull/2990)):** The API for configuring custom cache keys has had a minor change in this version. The signature of the `cacheKeyInfo(for:object:)` function, defined in your generated SchemaConfiguration.swift file, has been modified. For more information, see our [migration guide](https://www.apollographql.com/docs/ios/migrations/1.2).
+
+### Improved
+- **Improved performance of GraphQL execution ([#2990](https://github.com/apollographql/apollo-ios/pull/2990)):** Improvements to the `GraphQLExecutor` resulted in a ~15-20% reduction in execution time for parsing and mapping network response or cache data onto generated models.
+- **Improved performance of generated model initialization and type conversions ([#2990](https://github.com/apollographql/apollo-ios/pull/2990)):** The `DataDict` used to store the data for generated models has been updated to use copy-on-write value semantics. This resulted in a ~70-80% reduction in the execution time of initialization and type case conversions in the generated models.
+
+### Fixed
+- **Pruning generated files for `.relative(subpath:)` operations ([#2969](https://github.com/apollographql/apollo-ios/issues/2969)):** See PR [#2994](https://github.com/apollographql/apollo-ios/pull/2994). _Thank you to [@jimisaacs](https://github.com/jimisaacs) for raising the issue._
+- **InputObjects generated with incorrect getter/setter key ([#2858](https://github.com/apollographql/apollo-ios/issues/2858)):** See PR [#2996](https://github.com/apollographql/apollo-ios/pull/2996). _Thank you to [@Austinpayne](https://github.com/Austinpayne) for raising the issue._
+- **Generates conflicting types for fields of singular and plural names ([#2850](https://github.com/apollographql/apollo-ios/issues/2850)):** See PR [#3009](https://github.com/apollographql/apollo-ios/pull/3009). _Thank you to [@sgade](https://github.com/sgade) for raising the issue._
+- **Equality operator shows incorrect values based on value of `__fulfilled` ([#2944](https://github.com/apollographql/apollo-ios/issues/2944)):** See PR [#2990](https://github.com/apollographql/apollo-ios/pull/2990). _Thank you to [@scottasoutherland](https://github.com/scottasoutherland) for raising the issue._
+
+### New
+- **Add option to generate objects with `internal` access modifier ([#2630](https://github.com/apollographql/apollo-ios/issues/2630)):** See PR [#2917](https://github.com/apollographql/apollo-ios/pull/2917). _Thank you to [@simonbilskyrollins](https://github.com/simonbilskyrollins) for the feature request._
+
+## v1.1.3
+
+### Fixed
+- **`@dynamicMember` conflicting field name ([#2950](https://github.com/apollographql/apollo-ios/issues/2950)):** The subscript setters have been changed to allow a selection set property named `hash`. [#2965](https://github.com/apollographql/apollo-ios/pull/2965) _Thank you to [@renanbdias](https://github.com/renanbdias) for raising the issue._
+- **Disallow certain targetNames in code generation ([#2958](https://github.com/apollographql/apollo-ios/issues/2958)):** `apollo` is no longer allowed as a target name otherwise it causes a conflict when importing `Apollo` as a module. [#2972](https://github.com/apollographql/apollo-ios/pull/2972) _Thank you to [@moopoints](https://github.com/moopoints) for raising the issue._
+- **Fully Qualify name of RootEntityType and mergedSources ([#2949](https://github.com/apollographql/apollo-ios/issues/2949)):** Selection set types use fully qualified namespacing to prevent conflicts with other types. [#2956](https://github.com/apollographql/apollo-ios/pull/2956) _Thank you to [@martin-muller](https://github.com/martin-muller) for raising the issue._
+- **SelectionSet Codegen `__typename` fix ([#2955](https://github.com/apollographql/apollo-ios/issues/2955)):** Custom root types defined in the schema are now correctly applied to selection set fields typename definitions [#2983](https://github.com/apollographql/apollo-ios/pull/2983) _Thank you to [@ynnadrules](https://github.com/ynnadrules) for raising the issue._
+
+## v1.1.2
+
+### Fixed
+- **Crash after calling `cancel()` on `Cancellable` ([#2932](https://github.com/apollographql/apollo-ios/issues/2932)):** Calling `cancel()` on a non-subscription `Cancellable` will now correctly handle the lifetime of the internally `Unmanaged` object. [#2943](https://github.com/apollographql/apollo-ios/pull/2943) - _Thank you to [@yonaskolb](https://github.com/yonaskolb) for raising the issue._
+- **Deprecation messages are not escaped ([#2879](https://github.com/apollographql/apollo-ios/issues/2879)):** If escaped characters are used in GraphQL deprecation messages they are now properly escaped in the rendered Swift warning or attribution message. [#2951](https://github.com/apollographql/apollo-ios/pull/2951) _Thank you to [@djavan-bertrand](https://github.com/djavan-bertrand) for raising the issue._
+
+### Added
+- **Add injecting additionalErrorHandler for upload operations to RequestChainNetworkTransport ([#2948](https://github.com/apollographql/apollo-ios/pull/2948)):** `Upload` operations can now have custom error interceptors like other operations. [#2948](https://github.com/apollographql/apollo-ios/pull/2948) _Thank you to [@RobertDresler](https://github.com/RobertDresler) for the contribution._
+
+## v1.1.1
+
+### Fixed
+- **Version 1.1.0 does not compile when installed via CocoaPods ([#2936](https://github.com/apollographql/apollo-ios/issues/2936)):** Module names not present in CocoaPods builds have been removed from type declarations. [#2937](https://github.com/apollographql/apollo-ios/pull/2937) - _Thank you to [@simonliotier](https://github.com/simonliotier) for raising the issue._
+- **Crash when using mocks for Double Nested Arrays ([#2809](https://github.com/apollographql/apollo-ios/issues/2809)):** Test mock data is now correctly applied to the selection set. [#2939](https://github.com/apollographql/apollo-ios/pull/2939) - _Thank you to [@scottasoutherland](https://github.com/scottasoutherland) for raising the issue._
+- **In 1.1.0, passing custom scalars or GraphQLEnum to mocks fails ([#2928](https://github.com/apollographql/apollo-ios/issues/2928)):** Test mock data is now correctly applied to the selection set. [#2939](https://github.com/apollographql/apollo-ios/pull/2939) - _Thank you to [@scottasoutherland](https://github.com/scottasoutherland) for raising the issue._
+
+## v1.1.0
+
+Apollo iOS v1.1 primarily focuses on adding generated initializers to the generated operation models.
+
+In most cases, the upgrade from v1.0 to v1.1 should require no changes to your code. 
+
+### **Breaking** 
+- **Changed generated fragment accessors with inclusion conditions:** When conditionally spreading a fragment with an `@include/@skip` directive that has a different parent type than the selection set it is being spread into, the shape of the generated models has changed.  
+  - For example, a fragment accessor defined as `... on DetailNode @include(if: $includeDetails)` would have previously been named `asDetailNode`; it will now be generated as `asDetailNodeIfIncludeDetails`.
+- While no breaking changes were made to official public APIs, some *underscore prefixed* APIs that are `public` but intended for internal usage only have been changed.
+  - **SelectionSet fulfilled fragment tracking:** `SelectionSet` models now keep track of which fragments were fulfilled during GraphQL execution in order to enable conversions between type cases. While this does not cause functional changes while using public APIs, this is a fundamental change to the way that the underlying data for a `SelectionSet` is formatted, it is now required that all `SelectionSet` creation must be processed by the `GraphQLExecutor` or a generated initializer that is guaranteed to correctly format the data. **This means that initializing a `SelectionSet` using raw JSON data directly will no longer work.** Please ensure that raw JSON data is only used with the new `RootSelectionSet.init(data: variables)` initializer.
+### Fixed
+- **Null/nil value parsing issues**. In some situations, writing/reading `null` or `nil` values to the cache was causing crashes in 1.1 Beta 1. This is now fixed.  
+### Added
+- **Configuration option for generating initializers on SelectionSet models:** You can now get initializers for your generated selection set models by setting the `selectionSetInitializers` option on your code generation configuration. Manually initialized selection sets can be used for a number of purposes, including:
+  * Adding custom data to the normalized cache
+  * Setting up fixture data for SwiftUI previews or loading states
+  * An alternative to Test Mocks for unit testing      
+- **Safe initialization of `SelectionSet` models with raw JSON:** In 1.0, initializing `SelectionSet` models with raw JSON was unsafe and required usage of *underscore prefixed* APIs that were intended for internal usage only. Apollo iOS 1.1 introduces a new, safe initializer: `RootSelectionSet.init(data: variables)`.
+  * Previously, if you provided invalid JSON, your selection set's were unsafe and may cause crashes when used. The new initializer runs a lightweight version of GraphQL execution over the provided JSON data. This quickly parses, validates, and transforms the JSON data into the format required by the `SelectionSet` models. If the provided data is invalid, this initializer `throws` an error, ensuring that your model usage is always safe.
+- **Added support for multipart subscriptions over HTTP.**   
+### Changed
+- **Generate `__typename` selection for generated models:** In 1.1, the code generator adds the `__typename` field to each root object. In previous versions, this selection was automatically inferred by the `GraphQLExecutor`, however generating it directly should improve performance of GraphQL execution. 
+
+## v1.1.0-beta.1
+
+This is the first Beta Release of Apollo iOS 1.1. Version 1.1 primarily focuses on adding generated initializers to the generated operation models.
+
+While no breaking changes were made to official public APIs, some *underscore prefixed* APIs that are `public` but intended for internal usage only have been changed.
+
+### Added
+- **Configuration option for generating initializers on SelectionSet models:** You can now get initializers for your generated selection set models by setting the `selectionSetInitializers` option on your code generation configuration. Manually initialized selection sets can be used for a number of purposes, including:
+  * Adding custom data to the normalized cache
+  * Setting up fixture data for SwiftUI previews or loading states
+  * An alternative to Test Mocks for unit testing      
+- **Safe initialization of `SelectionSet` models with raw JSON:** In 1.0, initializing `SelectionSet` models with raw JSON was unsafe and required usage of *underscore prefixed* APIs that were intended for internal usage only. Apollo iOS 1.1 introduces a new, safe initializer: `RootSelectionSet.init(data: variables)`.
+  * Previously, if you provided invalid JSON, your selection set's were unsafe and may cause crashes when used. The new initializer runs a lightweight version of GraphQL execution over the provided JSON data. This quickly parses, validates, and transforms the JSON data into the format required by the `SelectionSet` models. If the provided data is invalid, this initializer `throws` an error, ensuring that your model usage is always safe.
+- **Added support for multipart subscriptions over HTTP.**   
+### Changed
+- **SelectionSet fulfilled fragment tracking:** `SelectionSet` models now keep track of which fragments were fulfilled during GraphQL execution in order to enable conversions between type cases. While this does not cause functional changes while using public APIs, this is a fundamental change to the way that the underlying data for a `SelectionSet` is formatted, it is now required that all `SelectionSet` creation must be processed by the `GraphQLExecutor` or a generated initializer that is guaranteed to correctly format the data. **This means that initializing a `SelectionSet` using raw JSON data directly will no longer work.** Please ensure that raw JSON data is only used with the new `RootSelectionSet.init(data: variables)` initializer.   
+- **Generate `__typename` selection for generated models:** In 1.1, the code generator adds the `__typename` field to each root object. In previous versions, this selection was automatically inferred by the `GraphQLExecutor`, however generating it directly should improve performance of GraphQL execution. 
+- **Changed generated fragment accessors with inclusion conditions:** When conditionally spreading a fragment with an `@include/@skip` directive that has a different parent type than the selection set it is being spread into, the shape of the generated models has changed. This does not affect generated call sites, but only affects the generated `selection` metadata used internally by the `GraphQLExecutor`.
+
+## v1.0.7
+
+### Fixed
+- **Couldn't build when using some reserved words in a schema ([#2765](https://github.com/apollographql/apollo-ios/issues/2765)):** `for` has been added to the list of reserved keywords that are escaped with backticks when used in schema types and operations. [#2772](https://github.com/apollographql/apollo-ios/pull/2772) - _Thank you to [@torycons](https://github.com/torycons) for raising the issue._
+- **Subscript GraphQL variable from dictionary crash when Swift modifier used as key ([#2759](https://github.com/apollographql/apollo-ios/issues/2759)):** Backticks have been removed from subscript keys of input objects. [#2773](https://github.com/apollographql/apollo-ios/pull/2773) - _Thank you to [@SzymonMatysik](https://github.com/SzymonMatysik) for raising the issue._
+- **Unnamed fields in schema results in broken generated Swift code ([#2753](https://github.com/apollographql/apollo-ios/issues/2753)):** The `_` character can be used as a GraphQL field name. [#2769](https://github.com/apollographql/apollo-ios/pull/2769) - _Thank you to [@neakor](https://github.com/neakor) for raising the issue._
+- **LocalCacheMutation with an enum field fails ([#2775](https://github.com/apollographql/apollo-ios/issues/2775)):** When writing selection set data back into the cache, custom scalars are now re-encoded back into their `_jsonValue`. [#2778](https://github.com/apollographql/apollo-ios/pull/2778) - _Thank you to [@dabby-wombo](https://github.com/dabby-wombo) for raising the issue._
+- **DataDict subscript function crashes on iOS 14.4 and under ([#2668](https://github.com/apollographql/apollo-ios/issues/2668)):** `AnyHashable` conversions when accessing `DataDict` properties now perform checks on the base type. [#2784](https://github.com/apollographql/apollo-ios/pull/2784) - _Thank you to [@bdunay3](https://github.com/bdunay3) for raising the issue._
+- **`@include` directive based on variable with default value drops the included data ([#2690](https://github.com/apollographql/apollo-ios/issues/2690)):** The GraphQL executor will now correctly evaluate `GraphQLNullable` conditional variables. [#2794](https://github.com/apollographql/apollo-ios/pull/2794) - _Thank you to [@klanchman](https://github.com/klanchman) for raising the issue._
+- **Interfaces implemented by schema root are not generated ([#2756](https://github.com/apollographql/apollo-ios/issues/2756)):** Interfaces references on the root type Query, Mutation or Subscription are now included in the schema module. [#2816](https://github.com/apollographql/apollo-ios/pull/2816) - _Thank you to [@litso](https://github.com/litso) for raising the issue._
+
+### Changed
+- **HTTP headers format in schema download configuration JSON ([#2661](https://github.com/apollographql/apollo-ios/issues/2661)):** `HTTPHeaders` in the `ApolloSchemaDownloadConfiguration` section of the codegen configuration JSON file can now be specified using the more intuitive format `{ "Authorization": "<token>"}`. [#2811](https://github.com/apollographql/apollo-ios/pull/2811) - _Thank you to [@nikitrivedii](https://github.com/nikitrivedii) for raising the issue._
+
 ## v1.0.6
 
 ### Fixed

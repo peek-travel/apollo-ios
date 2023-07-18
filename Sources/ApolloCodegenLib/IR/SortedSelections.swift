@@ -256,7 +256,7 @@ extension IR {
       unowned let fragment: NamedFragment?
     }
 
-    typealias MergedSources = Set<MergedSource>
+    typealias MergedSources = OrderedSet<MergedSource>
 
     private let directSelections: DirectSelections.ReadOnly?
     let typeInfo: SelectionSet.TypeInfo
@@ -272,22 +272,6 @@ extension IR {
     ) {
       self.directSelections = directSelections
       self.typeInfo = typeInfo
-
-      createConditionalSelectionSetsForConditionalFragmentSpreads(in: directSelections)
-    }
-
-    private func createConditionalSelectionSetsForConditionalFragmentSpreads(
-      in directSelections: DirectSelections.ReadOnly?
-    ) {
-      directSelections?.fragments.values.forEach { fragment in
-        if let anyOfConditions = fragment.inclusionConditions {
-          for conditions in anyOfConditions.elements {
-            createShallowlyMergedInlineFragmentIfNeeded(
-              with: ScopeCondition(conditions: conditions)
-            )
-          }
-        }
-      }
     }
 
     func mergeIn(_ selections: EntityTreeScopeSelections, from source: MergedSource) {
@@ -297,7 +281,7 @@ extension IR {
       selections.fragments.values.forEach { didMergeAnySelections = self.mergeIn($0) }
 
       if didMergeAnySelections {
-        mergedSources.insert(source)
+        mergedSources.append(source)
       }
     }
 

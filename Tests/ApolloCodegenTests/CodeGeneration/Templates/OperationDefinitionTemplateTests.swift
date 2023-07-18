@@ -69,7 +69,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class TestOperationQuery: GraphQLQuery {
-      public static let operationName: String = "TestOperation"
+      static let operationName: String = "TestOperation"
     """
 
     // when
@@ -94,7 +94,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class TestOperationQuery: GraphQLQuery {
-      public static let operationName: String = "TestOperationQuery"
+      static let operationName: String = "TestOperationQuery"
     """
 
     // when
@@ -133,7 +133,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class TestOperationQueryMutation: GraphQLMutation {
-      public static let operationName: String = "TestOperationQuery"
+      static let operationName: String = "TestOperationQuery"
     """
 
     // when
@@ -172,7 +172,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class TestOperationMutation: GraphQLMutation {
-      public static let operationName: String = "TestOperation"
+      static let operationName: String = "TestOperation"
     """
 
     // when
@@ -211,7 +211,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class TestOperationSubscription: GraphQLSubscription {
-      public static let operationName: String = "TestOperation"
+      static let operationName: String = "TestOperation"
     """
 
     // when
@@ -246,8 +246,8 @@ class OperationDefinitionTemplateTests: XCTestCase {
     let expected =
     """
     class LowercaseOperationQuery: GraphQLQuery {
-      public static let operationName: String = "lowercaseOperation"
-      public static let document: ApolloAPI.DocumentType = .notPersisted(
+      static let operationName: String = "lowercaseOperation"
+      static let operationDocument: ApolloAPI.OperationDocument = .init(
         definition: .init(
           #\"\"\"
           query lowercaseOperation($variable: String = "TestVar") {
@@ -261,6 +261,209 @@ class OperationDefinitionTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
   }
+
+  // MARK: Selection Set Declaration
+
+  func test__generate__givenOperationSelectionSet_rendersDeclaration() throws {
+    // given
+    schemaSDL = """
+    type Query {
+      allAnimals: [Animal!]
+    }
+
+    interface Animal {
+      species: String!
+    }
+    """
+
+    document = """
+    query TestOperation {
+      allAnimals {
+        species
+      }
+    }
+    """
+
+    let expected = """
+      struct Data: TestSchema.SelectionSet {
+        let __data: DataDict
+        init(_dataDict: DataDict) { __data = _dataDict }
+
+        static var __parentType: ApolloAPI.ParentType { TestSchema.Objects.Query }
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expected, atLine: 17, ignoringExtraLines: true))    
+  }
+
+  // MARK: - Selection Set Initializers
+
+    func test__generate_givenOperationSelectionSet_configIncludesOperations_rendersInitializer() throws {
+      // given
+      schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+      document = """
+      query TestOperation {
+        allAnimals {
+          species
+        }
+      }
+      """
+
+      let expected =
+      """
+            init(
+              species: String
+            ) {
+              self.init(_dataDict: DataDict(
+                data: [
+                  "__typename": TestSchema.Objects.Animal.typename,
+                  "species": species,
+                ],
+                fulfilledFragments: [
+                  ObjectIdentifier(TestOperationQuery.Data.AllAnimal.self)
+                ]
+              ))
+            }
+      """
+
+      config = .mock(options: .init(selectionSetInitializers: [.operations]))
+
+      // when
+      try buildSubjectAndOperation()
+
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine(expected, atLine: 57, ignoringExtraLines: true))
+    }
+
+    func test__generate_givenOperationSelectionSet_configIncludesSpecificOperation_rendersInitializer() throws {
+      // given
+      schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+      document = """
+      query TestOperation {
+        allAnimals {
+          species
+        }
+      }
+      """
+
+      let expected =
+      """
+            init(
+              species: String
+            ) {
+              self.init(_dataDict: DataDict(
+                data: [
+                  "__typename": TestSchema.Objects.Animal.typename,
+                  "species": species,
+                ],
+                fulfilledFragments: [
+                  ObjectIdentifier(TestOperationQuery.Data.AllAnimal.self)
+                ]
+              ))
+            }
+      """
+
+      config = .mock(options: .init(selectionSetInitializers: [
+        .operation(named: "TestOperation")
+      ]))
+
+      // when
+      try buildSubjectAndOperation()
+
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine(expected, atLine: 57, ignoringExtraLines: true))
+    }
+
+    func test__render_givenOperationSelectionSet_configDoesNotIncludeOperations_doesNotRenderInitializer() throws {
+      // given
+      schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+      document = """
+      query TestOperation {
+        allAnimals {
+          species
+        }
+      }
+      """
+
+      config = .mock(options: .init(selectionSetInitializers: [.namedFragments]))
+
+      // when
+      try buildSubjectAndOperation()
+
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine("    }", atLine: 42, ignoringExtraLines: true))
+    }
+
+    func test__render_givenOperationSelectionSet_configIncludeSpecificOperationWithOtherName_doesNotRenderInitializer() throws {
+      // given
+      schemaSDL = """
+      type Query {
+        allAnimals: [Animal!]
+      }
+
+      type Animal {
+        species: String!
+      }
+      """
+
+      document = """
+      query TestOperation {
+        allAnimals {
+          species
+        }
+      }
+      """
+
+      config = .mock(options: .init(selectionSetInitializers: [
+        .operation(named: "OtherOperation")
+      ]))
+
+      // when
+      try buildSubjectAndOperation()
+
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine("    }", atLine: 42, ignoringExtraLines: true))
+    }
+
 
   // MARK: - Variables
 
@@ -471,6 +674,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
       $fallthrough: String
       $false: String
       $fileprivate: String
+      $for: String
       $func: String
       $guard: String
       $if: String
@@ -529,6 +733,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
       public var `fallthrough`: GraphQLNullable<String>
       public var `false`: GraphQLNullable<String>
       public var `fileprivate`: GraphQLNullable<String>
+      public var `for`: GraphQLNullable<String>
       public var `func`: GraphQLNullable<String>
       public var `guard`: GraphQLNullable<String>
       public var `if`: GraphQLNullable<String>
@@ -580,6 +785,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
         `fallthrough`: GraphQLNullable<String>,
         `false`: GraphQLNullable<String>,
         `fileprivate`: GraphQLNullable<String>,
+        `for`: GraphQLNullable<String>,
         `func`: GraphQLNullable<String>,
         `guard`: GraphQLNullable<String>,
         `if`: GraphQLNullable<String>,
@@ -630,6 +836,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
         self.`fallthrough` = `fallthrough`
         self.`false` = `false`
         self.`fileprivate` = `fileprivate`
+        self.`for` = `for`
         self.`func` = `func`
         self.`guard` = `guard`
         self.`if` = `if`
@@ -682,6 +889,7 @@ class OperationDefinitionTemplateTests: XCTestCase {
         "fallthrough": `fallthrough`,
         "false": `false`,
         "fileprivate": `fileprivate`,
+        "for": `for`,
         "func": `func`,
         "guard": `guard`,
         "if": `if`,
@@ -725,4 +933,50 @@ class OperationDefinitionTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, atLine: 15, ignoringExtraLines: true))
   }
+  
+  // MARK: - Reserved Keyword Tests
+  
+  func test__generate__givenInputObjectUsingReservedKeyword_rendersAsEscapedType() throws {
+    // given
+    schemaSDL = """
+    input Type {
+      id: String!
+    }
+
+    type Query {
+      getUser(type: Type!): User
+    }
+
+    type User {
+      id: String!
+      name: String!
+      role: String!
+    }
+    """
+
+    document = """
+    query TestOperation($type: Type!) {
+        getUser(type: $type) {
+            name
+        }
+    }
+    """
+
+    let expectedOne = """
+      public var type: Type_InputObject
+    """
+    
+    let expectedTwo = """
+      public init(type: Type_InputObject) {
+    """
+
+    // when
+    try buildSubjectAndOperation()
+    let actual = renderSubject()
+
+    // then
+    expect(actual).to(equalLineByLine(expectedOne, atLine: 15, ignoringExtraLines: true))
+    expect(actual).to(equalLineByLine(expectedTwo, atLine: 17, ignoringExtraLines: true))
+  }
+  
 }

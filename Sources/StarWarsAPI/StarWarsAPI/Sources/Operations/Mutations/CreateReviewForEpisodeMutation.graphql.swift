@@ -5,7 +5,7 @@
 
 public class CreateReviewForEpisodeMutation: GraphQLMutation {
   public static let operationName: String = "CreateReviewForEpisode"
-  public static let document: ApolloAPI.DocumentType = .automaticallyPersisted(
+  public static let operationDocument: ApolloAPI.OperationDocument = .init(
     operationIdentifier: "9bbf5b4074d0635fb19d17c621b7b04ebfb1920d468a94266819e149841e7d5d",
     definition: .init(
       #"""
@@ -37,7 +37,7 @@ public class CreateReviewForEpisodeMutation: GraphQLMutation {
 
   public struct Data: StarWarsAPI.SelectionSet {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Objects.Mutation }
     public static var __selections: [ApolloAPI.Selection] { [
@@ -49,15 +49,30 @@ public class CreateReviewForEpisodeMutation: GraphQLMutation {
 
     public var createReview: CreateReview? { __data["createReview"] }
 
+    public init(
+      createReview: CreateReview? = nil
+    ) {
+      self.init(_dataDict: DataDict(
+        data: [
+          "__typename": StarWarsAPI.Objects.Mutation.typename,
+          "createReview": createReview._fieldData,
+        ],
+        fulfilledFragments: [
+          ObjectIdentifier(CreateReviewForEpisodeMutation.Data.self)
+        ]
+      ))
+    }
+
     /// CreateReview
     ///
     /// Parent Type: `Review`
     public struct CreateReview: StarWarsAPI.SelectionSet {
       public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      public init(_dataDict: DataDict) { __data = _dataDict }
 
       public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Objects.Review }
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("stars", Int.self),
         .field("commentary", String?.self),
       ] }
@@ -66,6 +81,22 @@ public class CreateReviewForEpisodeMutation: GraphQLMutation {
       public var stars: Int { __data["stars"] }
       /// Comment about the movie
       public var commentary: String? { __data["commentary"] }
+
+      public init(
+        stars: Int,
+        commentary: String? = nil
+      ) {
+        self.init(_dataDict: DataDict(
+          data: [
+            "__typename": StarWarsAPI.Objects.Review.typename,
+            "stars": stars,
+            "commentary": commentary,
+          ],
+          fulfilledFragments: [
+            ObjectIdentifier(CreateReviewForEpisodeMutation.Data.CreateReview.self)
+          ]
+        ))
+      }
     }
   }
 }

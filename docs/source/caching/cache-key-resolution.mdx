@@ -72,9 +72,9 @@ To configure how cache keys are computed from a response object, you can create 
 
 If your schema provides a common unique identifier across many of your objects types, you may want to use that field as the **cache ID** by default.
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     guard let id = object["id"] as? String else {
         return nil
     }
@@ -92,9 +92,9 @@ Alternatively, you can use the [`init(jsonValue:uniqueKeyGroup:)`](https://www.a
 
 If you want to return `nil` when the value does not exist, you can use `try?`.
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     return try? CacheKeyInfo(jsonValue: object["id"])
   }
 }
@@ -106,9 +106,9 @@ If you would like to specify **cache IDs** differently for different types of ob
 
 For an object of the type `Dog` with a unique key represented by an `id` field, you may implement cache key resolution as:
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     switch type {
     case Objects.Dog:
       return try? CacheKeyInfo(jsonValue: object["id"])
@@ -128,9 +128,9 @@ The generated schema metadata includes `Interfaces` and `Unions` types that cont
 
 For example, for a schema with `Dog` and `Cat` types that implement `interface Pet`, you may implement cache key resolution as:
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     if type.implements(Interfaces.Pet) {
       return try? CacheKeyInfo(jsonValue: object["id"])
     }
@@ -142,9 +142,9 @@ public extension MySchema {
 
 To instead configure cache key resolution based on a `union` type, use the union's [`possibleTypes`](https://www.apollographql.com/docs/ios/docc/documentation/apolloapi/union/possibletypes) property.
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     if Unions.ClassroomPets.possibleTypes.contains(type) {
       return try? CacheKeyInfo(jsonValue: object["id"])
     }
@@ -162,9 +162,9 @@ If your **cache IDs** values are guaranteed to be unique across a number of diff
 
 For example, if all objects that implement `interface Animal` will have unique **cache IDs**, whether they are `Dog`, `Cat`, or any other type that implements `Animal`, they can share a `uniqueKeyGroup`.
 
-```swift
-public extension MySchema {
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
+```swift title="SchemaConfiguration.swift"
+public enum SchemaConfiguration: ApolloAPI.SchemaConfiguration {
+  static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
     if type.implements(Interfaces.Pet) {
       return try? CacheKeyInfo(
         jsonValue: object["id"],
@@ -176,3 +176,13 @@ public extension MySchema {
   }
 }
 ```
+
+## Caveats & limitations
+
+Cache key resolution has a few notable quirks and limitations you should be aware of while implementing your cache key resolution function:
+
+1. While the cache key for an object can use a field from another nested object, if the fields on the referenced object are changed in another operation, the cache key for the dependent object will not be updated. For nested objects that are not normalized with their own cache key, this will never occur, but if the nested object is an entity with its own cache key, it can be mutated independently. In that case, any other objects whose cache keys are dependent on the mutated entity will not be updated automatically. You must take care to update those entities manually with a cache mutation.
+
+2. The `object` passed to this function represents data for an object in an specific operation model, not a type in your schema. This means that [aliased fields](https://spec.graphql.org/draft/#sec-Field-Alias) will be keyed on their alias name, not the name of the field on the schema type.
+
+3. The `object` parameter of this function is an ``ObjectData`` struct that wraps the underlying object data. Because cache key resolution is performed both on raw JSON (from a network response) and `SelectionSet` model data (when writing to the cache directly), the underlying data will have different formats. The ``ObjectData`` wrapper is used to normalize this data to a consistent format in this context.

@@ -11,25 +11,27 @@ struct FragmentTemplate: TemplateRenderer {
   let target: TemplateTarget = .operationFile
 
   var template: TemplateString {
-    TemplateString(
+    let definition = IR.Definition.namedFragment(fragment)
+
+    return TemplateString(
     """
-    \(embeddedAccessControlModifier)\
-    struct \(fragment.name.firstUppercased): \(config.schemaName.firstUppercased)\
-    .\(if: isMutable, "Mutable")SelectionSet, Fragment {
-      public static var fragmentDefinition: StaticString { ""\"
+    \(accessControlModifier(for: .parent))\
+    struct \(fragment.generatedDefinitionName.asFragmentName): \
+    \(definition.renderedSelectionSetType(config)), Fragment {
+      \(accessControlModifier(for: .member))\
+    static var fragmentDefinition: StaticString { ""\"
         \(fragment.definition.source)
         ""\" }
 
       \(SelectionSetTemplate(
-        mutable: isMutable,
-        config: config
-      ).BodyTemplate(fragment.rootField.selectionSet))
+        definition: definition,
+        generateInitializers: config.options.shouldGenerateSelectionSetInitializers(for: fragment),
+        config: config,
+        renderAccessControl: { accessControlModifier(for: .member) }()
+      ).renderBody())
     }
 
     """)
   }
 
-  private var isMutable: Bool {
-    fragment.definition.isLocalCacheMutation
-  }
 }

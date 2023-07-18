@@ -33,13 +33,13 @@ public extension Mock where O == Human {
     species: String? = nil
   ) {
     self.init()
-    self.bodyTemperature = bodyTemperature
-    self.firstName = firstName
-    self.height = height
-    self.id = id
-    self.laysEggs = laysEggs
-    self.predators = predators
-    self.skinCovering = skinCovering
-    self.species = species
+    _setScalar(bodyTemperature, for: \.bodyTemperature)
+    _setScalar(firstName, for: \.firstName)
+    _setEntity(height, for: \.height)
+    _setScalar(id, for: \.id)
+    _setScalar(laysEggs, for: \.laysEggs)
+    _setList(predators, for: \.predators)
+    _setScalar(skinCovering, for: \.skinCovering)
+    _setScalar(species, for: \.species)
   }
 }

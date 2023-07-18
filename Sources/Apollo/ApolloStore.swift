@@ -196,15 +196,9 @@ public class ApolloStore {
     fileprivate let cache: NormalizedCache
 
     fileprivate lazy var loader: DataLoader<CacheKey, RecordRow> = DataLoader(self.cache.loadRecords)
-    fileprivate lazy var executor = GraphQLExecutor { object, info in
-      return (object[info.cacheKeyForField], Date())
-    } resolveReference: { [weak self] reference in
-
-      guard let self = self else {
-        return .immediate(.failure(ApolloStore.Error.notWithinReadTransaction))
-      }
-      return self.loadObject(forKey: reference.key)
-    }
+    fileprivate lazy var executor = GraphQLExecutor(
+      executionSource: CacheDataExecutionSource(transaction: self)
+    ) 
 
     fileprivate init(store: ApolloStore) {
       self.cache = store.cache
@@ -251,10 +245,10 @@ public class ApolloStore {
       )
     }
     
-    fileprivate final func loadObject(forKey key: CacheKey) -> PossiblyDeferred<(JSONObject, Date)> {
+    final func loadObject(forKey key: CacheKey) -> PossiblyDeferred<(Record, Date)> {
       return loader[key].map { row in
         guard let row = row else { throw JSONDecodingError.missingValue }
-        return (row.record.fields, row.lastReceivedAt)
+        return (row.record, row.lastReceivedAt)
       }
     }
   }
@@ -292,7 +286,7 @@ public class ApolloStore {
         variables: variables,
         accumulator: GraphQLSelectionSetMapper<SelectionSet>(
           stripNullValues: false,
-          allowMissingValuesForOptionalFields: true
+          handleMissingValues: .allowForOptionalFields
         )
       )
 
@@ -309,19 +303,27 @@ public class ApolloStore {
                 variables: cacheMutation.__variables)
     }
 
-    public func write<SelectionSet: MutableRootSelectionSet>(
+    public func write<Operation: GraphQLOperation>(
+      data: Operation.Data,
+      for operation: Operation
+    ) throws {
+      try write(selectionSet: data,
+                withKey: CacheReference.rootCacheReference(for: Operation.operationType).key,
+                variables: operation.__variables)
+    }
+
+    public func write<SelectionSet: RootSelectionSet>(
       selectionSet: SelectionSet,
       withKey key: CacheKey,
       variables: GraphQLOperation.Variables? = nil
     ) throws {
-      let normalizer = GraphQLResultNormalizer()
-      let executor = GraphQLExecutor { object, info in
-        return (object[info.responseKeyForField], Date())
-      }
+      let normalizer = ResultNormalizerFactory.selectionSetDataNormalizer()
+
+      let executor = GraphQLExecutor(executionSource: SelectionSetModelExecutionSource())
 
       let records = try executor.execute(
         selectionSet: SelectionSet.self,
-        on: selectionSet.__data._data,
+        on: selectionSet.__data,
         firstReceivedAt: Date(),
         withRootCacheReference: CacheReference(key),
         variables: variables,

@@ -23,8 +23,8 @@ public extension Mock where O == Query {
     pets: [AnyMock]? = nil
   ) {
     self.init()
-    self.allAnimals = allAnimals
-    self.classroomPets = classroomPets
-    self.pets = pets
+    _setList(allAnimals, for: \.allAnimals)
+    _setList(classroomPets, for: \.classroomPets)
+    _setList(pets, for: \.pets)
   }
 }

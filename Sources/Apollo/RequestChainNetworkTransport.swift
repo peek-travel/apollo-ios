@@ -107,16 +107,32 @@ open class RequestChainNetworkTransport: NetworkTransport {
     callbackQueue: DispatchQueue = .main,
     completionHandler: @escaping (Result<GraphQLResult<Operation.Data>, Error>) -> Void) -> Cancellable {
     
-    let interceptors = self.interceptorProvider.interceptors(for: operation)
-    let chain = RequestChain(interceptors: interceptors, callbackQueue: callbackQueue)
-    chain.additionalErrorHandler = self.interceptorProvider.additionalErrorInterceptor(for: operation)
+    let chain = makeChain(operation: operation, callbackQueue: callbackQueue)
     let request = self.constructRequest(for: operation,
                                         cachePolicy: cachePolicy,
                                         contextIdentifier: contextIdentifier)
+
+    if Operation.operationType == .subscription {
+      request.addHeader(
+        name: "Accept",
+        value: "multipart/mixed;boundary=\"graphql\";subscriptionSpec=1.0,application/json"
+      )
+    }
     
     chain.kickoff(request: request, completion: completionHandler)
     return chain
   }
+
+  private func makeChain<Operation: GraphQLOperation>(
+    operation: Operation,
+    callbackQueue: DispatchQueue = .main
+  ) -> RequestChain {
+    let interceptors = self.interceptorProvider.interceptors(for: operation)
+    let chain = InterceptorRequestChain(interceptors: interceptors, callbackQueue: callbackQueue)
+    chain.additionalErrorHandler = self.interceptorProvider.additionalErrorInterceptor(for: operation)
+    return chain
+  }
+  
 }
 
 extension RequestChainNetworkTransport: UploadingNetworkTransport {
@@ -152,9 +168,7 @@ extension RequestChainNetworkTransport: UploadingNetworkTransport {
     completionHandler: @escaping (Result<GraphQLResult<Operation.Data>, Error>) -> Void) -> Cancellable {
     
     let request = self.constructUploadRequest(for: operation, with: files)
-    let interceptors = self.interceptorProvider.interceptors(for: operation)
-    let chain = RequestChain(interceptors: interceptors, callbackQueue: callbackQueue)
-    
+    let chain = makeChain(operation: operation, callbackQueue: callbackQueue)
     chain.kickoff(request: request, completion: completionHandler)
     return chain
   }

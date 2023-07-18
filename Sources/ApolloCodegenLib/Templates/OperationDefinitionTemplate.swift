@@ -11,14 +11,17 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
   let target: TemplateTarget = .operationFile
 
   var template: TemplateString {
-    TemplateString(
+    let definition = IR.Definition.operation(operation)
+
+    return TemplateString(
     """
-    \(OperationDeclaration(operation.definition))
+    \(OperationDeclaration())
       \(DocumentType.render(
         operation.definition,
         identifier: operation.operationIdentifier,
         fragments: operation.referencedFragments,
-        config: config
+        config: config,
+        accessControlRenderer: { accessControlModifier(for: .member) }()
       ))
 
       \(section: VariableProperties(operation.definition.variables))
@@ -27,17 +30,26 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
 
       \(section: VariableAccessors(operation.definition.variables))
 
-      \(SelectionSetTemplate(config: config).render(for: operation))
+      \(accessControlModifier(for: .member))struct Data: \(definition.renderedSelectionSetType(config)) {
+        \(SelectionSetTemplate(
+            definition: definition,
+            generateInitializers: config.options.shouldGenerateSelectionSetInitializers(for: operation),
+            config: config,
+            renderAccessControl: { accessControlModifier(for: .member) }()
+        ).renderBody())
+      }
     }
 
     """)
   }
 
-  private func OperationDeclaration(_ operation: CompilationResult.OperationDefinition) -> TemplateString {
+  private func OperationDeclaration() -> TemplateString {
     return """
-    \(embeddedAccessControlModifier)\
-    class \(operation.nameWithSuffix.firstUppercased): \(operation.operationType.renderedProtocolName) {
-      public static let operationName: String = "\(operation.name)"
+    \(accessControlModifier(for: .parent))\
+    class \(operation.generatedDefinitionName): \
+    \(operation.definition.operationType.renderedProtocolName) {
+      \(accessControlModifier(for: .member))\
+    static let operationName: String = "\(operation.definition.name)"
     """
   }
 
@@ -46,21 +58,23 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
       _ operation: CompilationResult.OperationDefinition,
       identifier: @autoclosure () -> String,
       fragments: OrderedSet<IR.NamedFragment>,
-      config: ApolloCodegen.ConfigurationContext
+      config: ApolloCodegen.ConfigurationContext,
+      accessControlRenderer: @autoclosure () -> String
     ) -> TemplateString {
       let includeFragments = !fragments.isEmpty
-      let includeDefinition = config.options.apqs != .persistedOperationsOnly
+      let includeDefinition = config.options.operationDocumentFormat.contains(.definition)
 
       return TemplateString("""
-      public static let document: \(config.ApolloAPITargetName).DocumentType = .\(config.options.apqs.rendered)(
-      \(if: config.options.apqs != .disabled, """
+      \(accessControlRenderer())\
+      static let operationDocument: \(config.ApolloAPITargetName).OperationDocument = .init(
+      \(if: config.options.operationDocumentFormat.contains(.operationId), """
         operationIdentifier: \"\(identifier())\"\(if: includeDefinition, ",")
       """)
       \(if: includeDefinition, """
         definition: .init(
           \(operation.source.formatted(for: config.options.queryStringLiteralFormat))\(if: includeFragments, ",")
           \(if: includeFragments,
-                            "fragments: [\(fragments.map { "\($0.name.firstUppercased).self" }, separator: ", ")]")
+                            "fragments: [\(fragments.map { "\($0.name.asFragmentName).self" }, separator: ", ")]")
         ))
       """,
       else: """
@@ -71,16 +85,6 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
     }
   }
 
-}
-
-fileprivate extension ApolloCodegenConfiguration.APQConfig {
-  var rendered: String {
-    switch self {
-    case .disabled: return "notPersisted"
-    case .automaticallyPersist: return "automaticallyPersisted"
-    case .persistedOperationsOnly: return "persistedOperationsOnly"
-    }
-  }
 }
 
 fileprivate extension CompilationResult.OperationType {
@@ -104,7 +108,7 @@ fileprivate extension String {
         """
 
     case .singleLine:
-      return "#\"\(components(separatedBy: .newlines).joined(separator: ""))\"#"
+      return "#\"\(convertedToSingleLine())\"#"
     }
   }
 }

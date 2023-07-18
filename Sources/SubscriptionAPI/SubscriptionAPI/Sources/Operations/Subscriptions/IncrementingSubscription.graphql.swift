@@ -5,7 +5,7 @@
 
 public class IncrementingSubscription: GraphQLSubscription {
   public static let operationName: String = "Incrementing"
-  public static let document: ApolloAPI.DocumentType = .notPersisted(
+  public static let operationDocument: ApolloAPI.OperationDocument = .init(
     definition: .init(
       #"""
       subscription Incrementing {
@@ -18,7 +18,7 @@ public class IncrementingSubscription: GraphQLSubscription {
 
   public struct Data: SubscriptionAPI.SelectionSet {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public static var __parentType: ApolloAPI.ParentType { SubscriptionAPI.Objects.Subscription }
     public static var __selections: [ApolloAPI.Selection] { [

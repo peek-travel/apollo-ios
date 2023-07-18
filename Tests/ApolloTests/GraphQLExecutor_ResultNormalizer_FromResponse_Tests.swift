@@ -8,16 +8,12 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
   // MARK: - Helpers
 
   private static let executor: GraphQLExecutor = {
-    let executor = GraphQLExecutor { object, info in
-      return (object[info.responseKeyForField], Date())
-    }
-
-    executor.shouldComputeCachePath = true
+    let executor = GraphQLExecutor(executionSource: NetworkResponseExecutionSource())    
     return executor
   }()
 
-  private func normalizeRecords(
-    _ selectionSet: RootSelectionSet.Type,
+  private func normalizeRecords<S: RootSelectionSet>(
+    _ selectionSet: S.Type,
     with variables: GraphQLOperation.Variables? = nil,
     from object: JSONObject
   ) throws -> RecordSet {
@@ -27,7 +23,7 @@ class GraphQLExecutor_ResultNormalizer_FromResponse_Tests: XCTestCase {
       firstReceivedAt: Date(),
       withRootCacheReference: CacheReference.RootQuery,
       variables: variables,
-      accumulator: GraphQLResultNormalizer()
+      accumulator: ResultNormalizerFactory.networkResponseDataNormalizer()
     )
   }
 

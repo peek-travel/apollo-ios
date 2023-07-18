@@ -85,10 +85,10 @@
               "text" : " : "
             },
             {
-              "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnySelectionSet",
+              "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
               "kind" : "typeIdentifier",
-              "preciseIdentifier" : "s:9ApolloAPI15AnySelectionSetP",
-              "text" : "AnySelectionSet"
+              "preciseIdentifier" : "s:9ApolloAPI12SelectionSetP",
+              "text" : "SelectionSet"
             }
           ]
         }
@@ -244,12 +244,21 @@
   "relationshipsSections" : [
     {
       "identifiers" : [
-        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnySelectionSet",
-        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSetEntityValue"
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
+        "doc:\/\/ApolloAPI\/SQ",
+        "doc:\/\/ApolloAPI\/SH"
       ],
       "kind" : "relationships",
       "title" : "Inherits From",
       "type" : "inheritsFrom"
+    },
+    {
+      "identifiers" : [
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeInlineFragment"
+      ],
+      "kind" : "relationships",
+      "title" : "Inherited By",
+      "type" : "inheritedBy"
     }
   ],
   "schemaVersion" : {
@@ -259,6 +268,20 @@
   },
   "sections" : [
 
+  ],
+  "topicSections" : [
+    {
+      "identifiers" : [
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/InlineFragment\/RootEntityType"
+      ],
+      "title" : "Associated Types"
+    },
+    {
+      "identifiers" : [
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/InlineFragment\/asRootEntityType"
+      ],
+      "title" : "Instance Properties"
+    }
   ],
   "variants" : [
     {
@@ -298,6 +321,16 @@
   "type" : "link",
   "url" : "\/documentation\/apollocodegenlib"
 },
+"doc://ApolloAPI/SH": {
+  "identifier" : "doc:\/\/ApolloAPI\/SH",
+  "title" : "Swift.Hashable",
+  "type" : "unresolvable"
+},
+"doc://ApolloAPI/SQ": {
+  "identifier" : "doc:\/\/ApolloAPI\/SQ",
+  "title" : "Swift.Equatable",
+  "type" : "unresolvable"
+},
 "doc://ApolloAPI/documentation/ApolloAPI": {
   "abstract" : [
     {
@@ -326,9 +359,28 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi"
 },
-"doc://ApolloAPI/documentation/ApolloAPI/AnySelectionSet": {
+"doc://ApolloAPI/documentation/ApolloAPI/CompositeInlineFragment": {
   "abstract" : [
-
+    {
+      "text" : "An ",
+      "type" : "text"
+    },
+    {
+      "code" : "InlineFragment",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : " that is also a ",
+      "type" : "text"
+    },
+    {
+      "code" : "CompositeSelectionSet",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : ".",
+      "type" : "text"
+    }
   ],
   "fragments" : [
     {
@@ -341,21 +393,21 @@
     },
     {
       "kind" : "identifier",
-      "text" : "AnySelectionSet"
+      "text" : "CompositeInlineFragment"
     }
   ],
-  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnySelectionSet",
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeInlineFragment",
   "kind" : "symbol",
   "navigatorTitle" : [
     {
       "kind" : "identifier",
-      "text" : "AnySelectionSet"
+      "text" : "CompositeInlineFragment"
     }
   ],
   "role" : "symbol",
-  "title" : "AnySelectionSet",
+  "title" : "CompositeInlineFragment",
   "type" : "topic",
-  "url" : "\/documentation\/apolloapi\/anyselectionset"
+  "url" : "\/documentation\/apolloapi\/compositeinlinefragment"
 },
 "doc://ApolloAPI/documentation/ApolloAPI/InlineFragment": {
   "abstract" : [
@@ -399,7 +451,83 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/inlinefragment"
 },
-"doc://ApolloAPI/documentation/ApolloAPI/SelectionSetEntityValue": {
+"doc://ApolloAPI/documentation/ApolloAPI/InlineFragment/RootEntityType": {
+  "abstract" : [
+
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "associatedtype"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "RootEntityType"
+    },
+    {
+      "kind" : "text",
+      "text" : " : "
+    },
+    {
+      "kind" : "typeIdentifier",
+      "preciseIdentifier" : "s:9ApolloAPI16RootSelectionSetP",
+      "text" : "RootSelectionSet"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/InlineFragment\/RootEntityType",
+  "kind" : "symbol",
+  "required" : true,
+  "role" : "symbol",
+  "title" : "RootEntityType",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/inlinefragment\/rootentitytype"
+},
+"doc://ApolloAPI/documentation/ApolloAPI/InlineFragment/asRootEntityType": {
+  "abstract" : [
+
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "var"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "asRootEntityType"
+    },
+    {
+      "kind" : "text",
+      "text" : ": "
+    },
+    {
+      "kind" : "typeIdentifier",
+      "text" : "Self"
+    },
+    {
+      "kind" : "text",
+      "text" : "."
+    },
+    {
+      "kind" : "typeIdentifier",
+      "text" : "RootEntityType"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/InlineFragment\/asRootEntityType",
+  "kind" : "symbol",
+  "role" : "symbol",
+  "title" : "asRootEntityType",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/inlinefragment\/asrootentitytype"
+},
+"doc://ApolloAPI/documentation/ApolloAPI/SelectionSet": {
   "abstract" : [
 
   ],
@@ -414,21 +542,21 @@
     },
     {
       "kind" : "identifier",
-      "text" : "SelectionSetEntityValue"
+      "text" : "SelectionSet"
     }
   ],
-  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSetEntityValue",
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
   "kind" : "symbol",
   "navigatorTitle" : [
     {
       "kind" : "identifier",
-      "text" : "SelectionSetEntityValue"
+      "text" : "SelectionSet"
     }
   ],
   "role" : "symbol",
-  "title" : "SelectionSetEntityValue",
+  "title" : "SelectionSet",
   "type" : "topic",
-  "url" : "\/documentation\/apolloapi\/selectionsetentityvalue"
+  "url" : "\/documentation\/apolloapi\/selectionset"
 }
 }
 }

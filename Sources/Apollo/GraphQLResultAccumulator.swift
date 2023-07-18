@@ -10,7 +10,10 @@ protocol GraphQLResultAccumulator: AnyObject {
   associatedtype ObjectResult
   associatedtype FinalResult
 
+  var requiresCacheKeyComputation: Bool { get }
+
   func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
   func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
   func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult
   func accept(list: [PartialResult], info: FieldExecutionInfo) throws -> PartialResult
@@ -42,10 +45,15 @@ final class Zip2Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
 
   private let accumulator1: Accumulator1
   private let accumulator2: Accumulator2
+  let requiresCacheKeyComputation: Bool
 
   fileprivate init(_ accumulator1: Accumulator1, _ accumulator2: Accumulator2) {
     self.accumulator1 = accumulator1
     self.accumulator2 = accumulator2
+
+    self.requiresCacheKeyComputation =
+    accumulator1.requiresCacheKeyComputation ||
+    accumulator2.requiresCacheKeyComputation
   }
 
 
@@ -57,11 +65,14 @@ final class Zip2Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
 
   }
 
-  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult) {
-    return (
-           try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
-           try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info)
-         )
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+    return (try accumulator1.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator2.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info))
+  }
+
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+    return (try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info))
   }
 
   func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult) {
@@ -108,7 +119,7 @@ final class Zip3Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
   private let accumulator1: Accumulator1
   private let accumulator2: Accumulator2
   private let accumulator3: Accumulator3
-
+  let requiresCacheKeyComputation: Bool
 
   fileprivate init(_ accumulator1: Accumulator1,
                    _ accumulator2: Accumulator2,
@@ -116,6 +127,10 @@ final class Zip3Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
     self.accumulator1 = accumulator1
     self.accumulator2 = accumulator2
     self.accumulator3 = accumulator3
+    self.requiresCacheKeyComputation =
+    accumulator1.requiresCacheKeyComputation ||
+    accumulator2.requiresCacheKeyComputation ||
+    accumulator3.requiresCacheKeyComputation
   }
 
 
@@ -127,13 +142,16 @@ final class Zip3Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
          )
   }
 
-  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult) {
-    return (
-           try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
-           try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
-           try accumulator3.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info)
-         )
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+    return (try accumulator1.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator2.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator3.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info))
+  }
 
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+    return (try accumulator1.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator2.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info),
+            try accumulator3.acceptNullValue(firstReceivedAt: firstReceivedAt, info: info))
   }
 
   func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> (Accumulator1.PartialResult, Accumulator2.PartialResult, Accumulator3.PartialResult) {
@@ -188,6 +206,7 @@ final class Zip4Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
    private let accumulator2: Accumulator2
    private let accumulator3: Accumulator3
    private let accumulator4: Accumulator4
+  let requiresCacheKeyComputation: Bool
 
 
    fileprivate init(_ accumulator1: Accumulator1,
@@ -198,6 +217,11 @@ final class Zip4Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
      self.accumulator2 = accumulator2
      self.accumulator3 = accumulator3
      self.accumulator4 = accumulator4
+     self.requiresCacheKeyComputation =
+     accumulator1.requiresCacheKeyComputation ||
+     accumulator2.requiresCacheKeyComputation ||
+     accumulator3.requiresCacheKeyComputation ||
+     accumulator4.requiresCacheKeyComputation
    }
 
    func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
@@ -208,6 +232,15 @@ final class Zip4Accumulator<Accumulator1: GraphQLResultAccumulator, Accumulator2
        try accumulator4.accept(scalar: scalar, firstReceivedAt: firstReceivedAt, info: info)
      )
    }
+
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
+    return (
+      try accumulator1.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator2.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator3.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info),
+      try accumulator4.accept(customScalar: customScalar, firstReceivedAt: firstReceivedAt, info: info)
+    )
+  }
 
    func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> PartialResult {
      return (

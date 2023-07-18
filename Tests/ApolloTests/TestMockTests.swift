@@ -2,6 +2,7 @@ import XCTest
 import Nimble
 @testable import Apollo
 import ApolloTestSupport
+import ApolloInternalTestHelpers
 import ApolloAPI
 
 class TestMockTests: XCTestCase {
@@ -220,6 +221,27 @@ class TestMockTests: XCTestCase {
     expect(expected.isEqual(mock.listOfOptionalInterfaces as [AnyMock?]?)).to(beTrue())
   }
 
+  func test__mock__givenFieldNamedHash_whenValueSetWithInitializer_shouldBuildAndFieldIsSet() throws {
+    // given + when
+    let mock = Mock<Dog>(hash: "MyHash")
+
+    // then
+    expect(mock._data["hash"] as? String).to(equal("MyHash"))
+    expect(mock.hash).to(equal("MyHash"))
+  }
+
+  func test__mock__givenFieldNamedHash_whenValueSetWithSubscript_shouldBuildAndFieldIsSet() throws {
+    // given
+    let mock = Mock<Dog>()
+
+    // when
+    mock.hash = "MyHash"
+
+    // then
+    expect(mock._data["hash"] as? String).to(equal("MyHash"))
+    expect(mock.hash).to(equal("MyHash"))
+  }
+
   // MARK: SelectionSet Mock Data Conversion Tests
 
   func test___selectionSetMockData__givenObjectFieldSetToOtherObject__convertsObjectToDict() throws {
@@ -286,7 +308,7 @@ class TestMockTests: XCTestCase {
     mock.customScalar = customScalar
 
     let actual = mock._selectionSetMockData
-    let actualCustomScalar = actual["customScalar"] as? MockCustomScalar
+    let actualCustomScalar = actual["customScalar"] as? MockCustomScalar<Int>
     // then
     expect(actualCustomScalar?.value).to(equal(12))
   }
@@ -319,24 +341,233 @@ class TestMockTests: XCTestCase {
     expect(mocks).to(equal(Set([mock1, mock2, mock3])))
   }
 
+  // MARK: - Selection Set Conversion Tests
+
+  func test__convertToSelectionSet_givenSelectionSetWithVariableForInclusionCondition_isTrue_canAccessConditionalField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .include(if: "a", .inlineFragment(IfA.self)),
+      ]}
+
+      var ifA: IfA? { _asInlineFragment() }
+
+      class IfA: TestMockSchema.ConcreteMockTypeCase<Animal> {
+        override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+        override class var __selections: [Selection] {[
+          .field("species", String.self),
+        ]}
+
+        var species: String { __data["species"] }
+      }
+    }
+
+    // when
+    let dog = Mock<Dog>()
+    dog.species = "Canine"
+
+    let selectionSet = Animal.from(dog, withVariables: ["a": true])
+
+    // then
+    expect(selectionSet.ifA?.species).to(equal("Canine"))
+  }
+
+  func test__convertToSelectionSet_givenSelectionSetWithVariableForInclusionCondition_isFalse_canNotAccessConditionalField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .include(if: "a", .inlineFragment(IfA.self)),
+      ]}
+
+      var ifA: IfA? { _asInlineFragment() }
+
+      class IfA: TestMockSchema.ConcreteMockTypeCase<Animal> {
+        override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+        override class var __selections: [Selection] {[
+          .field("species", String.self),
+        ]}
+
+        var species: String { __data["species"] }
+      }
+    }
+
+    // when
+    let dog = Mock<Dog>()
+    dog.species = "Canine"
+
+    let selectionSet = Animal.from(dog, withVariables: ["a": false])
+
+    // then
+    expect(selectionSet.ifA).to(beNil())
+  }
+
+  func test__convertToSelectionSet_givenSelectionSetWithTypeCondition_canConvert_canAccessConditionalField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .inlineFragment(AsDog.self),
+      ]}
+
+      var asDog: AsDog? { _asInlineFragment() }
+
+      class AsDog: TestMockSchema.ConcreteMockTypeCase<Animal> {
+        override class var __parentType: ParentType { TestMockSchema.Types.Dog }
+        override class var __selections: [Selection] {[
+          .field("species", String.self),
+        ]}
+
+        var species: String { __data["species"] }
+      }
+    }
+
+    // when
+    let dog = Mock<Dog>()
+    dog.species = "Canine"
+
+    let selectionSet = Animal.from(dog)
+
+    // then
+    expect(selectionSet.asDog?.species).to(equal("Canine"))
+  }
+
+  func test__convertToSelectionSet_givenSelectionSetWithTypeCondition_canNotConvert_canNotAccessConditionalField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .inlineFragment(AsDog.self),
+      ]}
+
+      var asDog: AsDog? { _asInlineFragment() }
+
+      class AsDog: TestMockSchema.ConcreteMockTypeCase<Animal> {
+        override class var __parentType: ParentType { TestMockSchema.Types.Dog }
+        override class var __selections: [Selection] {[
+          .field("species", String.self),
+        ]}
+
+        var species: String { __data["species"] }
+      }
+    }
+
+    // when
+    let cat = Mock<Cat>()
+    cat.species = "Feline"
+
+    let selectionSet = Animal.from(cat)
+
+    // then
+    expect(selectionSet.asDog).to(beNil())
+  }
+
+  func test__convertToSelectionSet_givenRequiredFieldNotInitialized_doesNotThrow() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .field("species", String.self),
+      ]}
+
+      var species: String { __data["species"] }
+    }
+
+    // when
+    let dog = Mock<Dog>()
+
+    let selectionSet = Animal.from(dog)
+
+    // then
+    expect(selectionSet.__data._data["species"]).to(beNil())
+  }
+
+  func test__convertToSelectionSet__givenGraphQLEnumField__canAccessField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .field("speciesType", GraphQLEnum<Species>.self),
+      ]}
+
+      var speciesType: GraphQLEnum<Species> { __data["speciesType"] }
+    }
+
+    let mock = Mock<Dog>()
+    mock.speciesType = GraphQLEnum(Species.canine)
+
+    // when
+    let selectionSet = Animal.from(mock)
+
+    // then
+    expect(selectionSet.speciesType).to(equal(.case(.canine)))
+  }
+
+  func test__convertToSelectionSet__setNestedListOfObjectsField__canAccessField() throws {
+    // given
+    class Animal: TestMockSchema.MockSelectionSet {
+      override class var __parentType: ParentType { TestMockSchema.Interfaces.Animal }
+      override class var __selections: [Selection] {[
+        .field("nestedListOfObjects", [[CatData]].self),
+      ]}
+
+      var nestedListOfObjects: [[CatData]] { __data["nestedListOfObjects"] }
+
+      class CatData: TestMockSchema.MockSelectionSet {
+        override class var __parentType: ParentType { TestMockSchema.Types.Cat }
+        override class var __selections: [Selection] {[
+          .field("species", String.self),
+        ]}
+      }
+    }
+
+    let mock = Mock<Dog>()
+    let cat1 = Mock<Cat>()
+    let cat2 = Mock<Cat>()
+    let cat3 = Mock<Cat>()
+    mock.nestedListOfObjects = [[cat1, cat2, cat3]]
+
+    // when
+    let selectionSet = Animal.from(mock)
+
+    // then
+    expect(selectionSet.nestedListOfObjects.count).to(equal(1))
+    expect(selectionSet.nestedListOfObjects[0].count).to(equal(3))
+  }
 }
 
 // MARK: - Generated Example
 
 // MARK: Generated Schema
-enum TestMockSchema: SchemaConfiguration {
-  static func objectType(forTypename typename: String) -> Object? {
-    return nil
+enum TestMockSchema: SchemaMetadata {
+  typealias MockSelectionSet = AbstractMockSelectionSet<NoFragments, TestMockSchema>
+  open class ConcreteMockTypeCase<T: MockSelectionSet>: MockSelectionSet, InlineFragment {
+    public typealias RootEntityType = T
   }
 
-  static func cacheKeyInfo(for type: Object, object: JSONObject) -> CacheKeyInfo? {
-    return nil
+  static func objectType(forTypename typename: String) -> Object? {
+    switch typename {
+    case Types.Dog.typename: return Types.Dog
+    case Types.Cat.typename: return Types.Cat
+    case Types.Height.typename: return Types.Height
+    default: return nil
+    }
+  }
+
+  static var configuration: SchemaConfiguration.Type { Configuration.self }
+
+  enum Configuration: SchemaConfiguration {
+    static func cacheKeyInfo(for type: Object, object: ObjectData) -> CacheKeyInfo? {
+      return nil
+    }
   }
 
   struct Interfaces {
     static let Animal = Interface(name: "Animal")
   }
   struct Types {
+    static let Query = Object(typename: "Query", implementedInterfaces: [])
     static let Dog = Object(
       typename: "Dog",
       implementedInterfaces: [TestMockSchema.Interfaces.Animal]
@@ -366,7 +597,7 @@ class Dog: MockObject {
     @Field<String>("id") public var id
     @Field<String>("species") public var species
     @Field<GraphQLEnum<Species>>("speciesType") public var speciesType
-    @Field<MockCustomScalar>("customScalar") public var customScalar
+    @Field<MockCustomScalar<Int>>("customScalar") public var customScalar
     @Field<Height>("height") public var height
     @Field<[String]>("listOfStrings") public var listOfStrings
     @Field<Animal>("bestFriend") public var bestFriend
@@ -377,8 +608,26 @@ class Dog: MockObject {
     @Field<[Animal]>("listOfInterfaces") public var listOfInterfaces
     @Field<[[Animal]]>("nestedListOfInterfaces") public var nestedListOfInterfaces
     @Field<[Animal?]>("listOfOptionalInterfaces") public var listOfOptionalInterfaces
+    @Field<String>("hash") public var hash
   }
 }
+
+extension Mock where O == Dog {
+  var hash: String? {
+    get { _data["hash"] as? String }
+    set { _setScalar(newValue, for: \.hash) }
+  }
+
+  convenience init(
+    speciesType: GraphQLEnum<Species>? = nil,
+    hash: String? = nil
+  ) {
+    self.init()
+    _setScalar(speciesType, for: \.speciesType)
+    _setScalar(hash, for: \.hash)
+  }
+}
+
 
 class Cat: MockObject {
   static let objectType: Object = TestMockSchema.Types.Cat
@@ -411,15 +660,15 @@ enum Species: String, EnumType {
   case feline
 }
 
-struct MockCustomScalar: CustomScalarType, Hashable {
-  let value: Int
+struct MockCustomScalar<T: Hashable>: CustomScalarType, Hashable {
+  let value: T
 
-  init(value: Int) {
+  init(value: T) {
     self.value = value
   }
 
   init(_jsonValue value: ApolloAPI.JSONValue) throws {
-    self.value = value as! Int
+    self.value = value as! T
   }
 
   var _jsonValue: ApolloAPI.JSONValue { value }

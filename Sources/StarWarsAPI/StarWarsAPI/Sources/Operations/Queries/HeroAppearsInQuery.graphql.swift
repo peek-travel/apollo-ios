@@ -5,7 +5,7 @@
 
 public class HeroAppearsInQuery: GraphQLQuery {
   public static let operationName: String = "HeroAppearsIn"
-  public static let document: ApolloAPI.DocumentType = .automaticallyPersisted(
+  public static let operationDocument: ApolloAPI.OperationDocument = .init(
     operationIdentifier: "22d772c0fc813281705e8f0a55fc70e71eeff6e98f3f9ef96cf67fb896914522",
     definition: .init(
       #"""
@@ -22,7 +22,7 @@ public class HeroAppearsInQuery: GraphQLQuery {
 
   public struct Data: StarWarsAPI.SelectionSet {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Objects.Query }
     public static var __selections: [ApolloAPI.Selection] { [
@@ -31,20 +31,50 @@ public class HeroAppearsInQuery: GraphQLQuery {
 
     public var hero: Hero? { __data["hero"] }
 
+    public init(
+      hero: Hero? = nil
+    ) {
+      self.init(_dataDict: DataDict(
+        data: [
+          "__typename": StarWarsAPI.Objects.Query.typename,
+          "hero": hero._fieldData,
+        ],
+        fulfilledFragments: [
+          ObjectIdentifier(HeroAppearsInQuery.Data.self)
+        ]
+      ))
+    }
+
     /// Hero
     ///
     /// Parent Type: `Character`
     public struct Hero: StarWarsAPI.SelectionSet {
       public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      public init(_dataDict: DataDict) { __data = _dataDict }
 
       public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Interfaces.Character }
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("appearsIn", [GraphQLEnum<StarWarsAPI.Episode>?].self),
       ] }
 
       /// The movies this character appears in
       public var appearsIn: [GraphQLEnum<StarWarsAPI.Episode>?] { __data["appearsIn"] }
+
+      public init(
+        __typename: String,
+        appearsIn: [GraphQLEnum<StarWarsAPI.Episode>?]
+      ) {
+        self.init(_dataDict: DataDict(
+          data: [
+            "__typename": __typename,
+            "appearsIn": appearsIn,
+          ],
+          fulfilledFragments: [
+            ObjectIdentifier(HeroAppearsInQuery.Data.Hero.self)
+          ]
+        ))
+      }
     }
   }
 }

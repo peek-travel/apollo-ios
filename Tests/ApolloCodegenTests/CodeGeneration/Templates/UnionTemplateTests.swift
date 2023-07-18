@@ -12,7 +12,7 @@ class UnionTemplateTests: XCTestCase {
     super.tearDown()
   }
 
-  // MARK: Helpers
+  // MARK: - Helpers
 
   private func buildSubject(
     name: String = "ClassroomPet",
@@ -55,7 +55,7 @@ class UnionTemplateTests: XCTestCase {
 
   func test_render_givenLowercaseSchemaName_generatesUsingCapitalizedSchemaName() throws {
     // given
-    buildSubject(config: .mock(schemaName: "lowercased"))
+    buildSubject(config: .mock(schemaNamespace: "lowercased"))
 
     let expected = """
       possibleTypes: [
@@ -75,7 +75,7 @@ class UnionTemplateTests: XCTestCase {
 
   func test_render_givenUppercaseSchemaName_generatesUsingUppercaseSchemaName() throws {
     // given
-    buildSubject(config: .mock(schemaName: "UPPER"))
+    buildSubject(config: .mock(schemaNamespace: "UPPER"))
 
     let expected = """
       possibleTypes: [
@@ -95,7 +95,7 @@ class UnionTemplateTests: XCTestCase {
 
   func test_render_givenCapitalizedSchemaName_generatesUsingCapitalizedSchemaName() throws {
     // given
-    buildSubject(config: .mock(schemaName: "MySchema"))
+    buildSubject(config: .mock(schemaNamespace: "MySchema"))
 
     let expected = """
       possibleTypes: [
@@ -113,7 +113,7 @@ class UnionTemplateTests: XCTestCase {
     expect(actual).to(equalLineByLine(expected, atLine: 3, ignoringExtraLines: true))
   }
 
-  // MARK: Enum Generation Tests
+  // MARK: Class Generation Tests
 
   func test_render_generatesSwiftEnumDefinition() throws {
     // given
@@ -216,51 +216,6 @@ class UnionTemplateTests: XCTestCase {
     expect(actual).to(equalLineByLine(expected, atLine: 3, ignoringExtraLines: true))
   }
 
-  func test_render_givenModuleType_swiftPackageManager_generatesSwiftEnum_withPublicModifier() {
-    // given
-    buildSubject(config: .mock(.swiftPackageManager))
-
-    let expected = """
-    static let ClassroomPet = Union(
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
-  }
-
-  func test_render_givenModuleType_other_generatesSwiftEnum_withPublicModifier() {
-    // given
-    buildSubject(config: .mock(.other))
-
-    let expected = """
-    static let ClassroomPet = Union(
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
-  }
-
-  func test_render_givenModuleType_embeddedInTarget_generatesSwiftEnum_noPublicModifier() {
-    // given
-    buildSubject(config: .mock(.embeddedInTarget(name: "TestTarget")))
-
-    let expected = """
-    static let ClassroomPet = Union(
-    """
-
-    // when
-    let actual = renderSubject()
-
-    // then
-    expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
-  }
-
   // MARK: Documentation Tests
 
   func test__render__givenSchemaDocumentation_include_hasDocumentation_shouldGenerateDocumentationComment() throws {
@@ -302,4 +257,27 @@ class UnionTemplateTests: XCTestCase {
     // then
     expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
   }
+  
+  // MARK: - Reserved Keyword Tests
+  
+  func test_render_usingReservedKeyword_shouldHaveSuffixedType() throws {
+    let keywords = ["Type", "type"]
+    
+    keywords.forEach { keyword in
+      // given
+      buildSubject(name: keyword)
+
+      let expected = """
+      static let \(keyword.firstUppercased)_Union = Union(
+        name: "\(keyword)",
+      """
+
+      // when
+      let actual = renderSubject()
+
+      // then
+      expect(actual).to(equalLineByLine(expected, ignoringExtraLines: true))
+    }
+  }
+  
 }

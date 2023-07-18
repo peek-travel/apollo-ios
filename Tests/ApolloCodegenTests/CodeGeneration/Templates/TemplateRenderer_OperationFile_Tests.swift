@@ -9,12 +9,12 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
 
   private func buildConfig(
     moduleType: ApolloCodegenConfiguration.SchemaTypesFileOutput.ModuleType,
-    schemaName: String = "testSchema",
+    schemaNamespace: String = "testSchema",
     operations: ApolloCodegenConfiguration.OperationsFileOutput,
     cocoapodsCompatibleImportStatements: Bool = false
   ) -> ApolloCodegenConfiguration {
     ApolloCodegenConfiguration.mock(
-      schemaName: schemaName,
+      schemaNamespace: schemaNamespace,
       input: .init(schemaPath: "MockInputPath", operationSearchPaths: []),
       output: .mock(moduleType: moduleType, operations: operations),
       options: .init(cocoapodsCompatibleImportStatements: cocoapodsCompatibleImportStatements)
@@ -240,8 +240,16 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
     }
     """
 
-    let expectedNamespace = """
+    let expectedPublicNamespace = """
     public extension TestSchema {
+      root {
+        nested
+      }
+    }
+    """
+
+    let expectedInternalNamespace = """
+    extension TestSchema {
       root {
         nested
       }
@@ -303,9 +311,15 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
         atLine: 7
       ),
       (
-        schemaTypes: .embeddedInTarget(name: "MockApplication"),
+        schemaTypes: .embeddedInTarget(name: "MockApplication", accessModifier: .internal),
         operations: .inSchemaModule,
-        expectation: expectedNamespace,
+        expectation: expectedInternalNamespace,
+        atLine: 6
+      ),
+      (
+        schemaTypes: .embeddedInTarget(name: "MockApplication", accessModifier: .public),
+        operations: .inSchemaModule,
+        expectation: expectedPublicNamespace,
         atLine: 6
       )
     ]
@@ -328,8 +342,8 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
     // given
 
     let config = buildConfig(
-      moduleType: .embeddedInTarget(name: "MockApplication"),
-      schemaName: "testschema",
+      moduleType: .embeddedInTarget(name: "MockApplication", accessModifier: .public),
+      schemaNamespace: "testschema",
       operations: .inSchemaModule)
 
     let subject = buildSubject(config: config)
@@ -349,8 +363,8 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
     // given
 
     let config = buildConfig(
-      moduleType: .embeddedInTarget(name: "MockApplication"),
-      schemaName: "TESTSCHEMA",
+      moduleType: .embeddedInTarget(name: "MockApplication", accessModifier: .public),
+      schemaNamespace: "TESTSCHEMA",
       operations: .inSchemaModule)
 
     let subject = buildSubject(config: config)
@@ -370,8 +384,8 @@ class TemplateRenderer_OperationFile_Tests: XCTestCase {
     // given
 
     let config = buildConfig(
-      moduleType: .embeddedInTarget(name: "MockApplication"),
-      schemaName: "TestSchema",
+      moduleType: .embeddedInTarget(name: "MockApplication", accessModifier: .public),
+      schemaNamespace: "TestSchema",
       operations: .inSchemaModule)
 
     let subject = buildSubject(config: config)

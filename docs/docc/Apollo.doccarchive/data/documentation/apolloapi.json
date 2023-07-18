@@ -142,7 +142,8 @@
     {
       "identifiers" : [
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnyHashableConvertible",
-        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnySelectionSet",
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeInlineFragment",
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeSelectionSet",
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/Fragment",
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/FragmentContainer",
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/GraphQLMutation",
@@ -170,7 +171,10 @@
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CacheReference",
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/DataDict",
         "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/InputDict",
-        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/OperationDefinition"
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/ListData",
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/ObjectData",
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/OperationDefinition",
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/OperationDocument"
       ],
       "title" : "Structures"
     },
@@ -349,37 +353,6 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/anyscalartype"
 },
-"doc://ApolloAPI/documentation/ApolloAPI/AnySelectionSet": {
-  "abstract" : [
-
-  ],
-  "fragments" : [
-    {
-      "kind" : "keyword",
-      "text" : "protocol"
-    },
-    {
-      "kind" : "text",
-      "text" : " "
-    },
-    {
-      "kind" : "identifier",
-      "text" : "AnySelectionSet"
-    }
-  ],
-  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/AnySelectionSet",
-  "kind" : "symbol",
-  "navigatorTitle" : [
-    {
-      "kind" : "identifier",
-      "text" : "AnySelectionSet"
-    }
-  ],
-  "role" : "symbol",
-  "title" : "AnySelectionSet",
-  "type" : "topic",
-  "url" : "\/documentation\/apolloapi\/anyselectionset"
-},
 "doc://ApolloAPI/documentation/ApolloAPI/CacheKeyInfo": {
   "abstract" : [
     {
@@ -465,6 +438,90 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/cachereference"
 },
+"doc://ApolloAPI/documentation/ApolloAPI/CompositeInlineFragment": {
+  "abstract" : [
+    {
+      "text" : "An ",
+      "type" : "text"
+    },
+    {
+      "code" : "InlineFragment",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : " that is also a ",
+      "type" : "text"
+    },
+    {
+      "code" : "CompositeSelectionSet",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : ".",
+      "type" : "text"
+    }
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "protocol"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "CompositeInlineFragment"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeInlineFragment",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "CompositeInlineFragment"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "CompositeInlineFragment",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/compositeinlinefragment"
+},
+"doc://ApolloAPI/documentation/ApolloAPI/CompositeSelectionSet": {
+  "abstract" : [
+    {
+      "text" : "A selection set that is comprised of only fields merged from other selection sets.",
+      "type" : "text"
+    }
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "protocol"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "CompositeSelectionSet"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/CompositeSelectionSet",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "CompositeSelectionSet"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "CompositeSelectionSet",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/compositeselectionset"
+},
 "doc://ApolloAPI/documentation/ApolloAPI/CustomScalarType": {
   "abstract" : [
     {
@@ -510,15 +567,16 @@
 "doc://ApolloAPI/documentation/ApolloAPI/DataDict": {
   "abstract" : [
     {
-      "text" : "A structure that wraps the underlying data dictionary used by ",
+      "text" : "A structure that wraps the underlying data for a ",
       "type" : "text"
     },
     {
-      "code" : "SelectionSet",
-      "type" : "codeVoice"
+      "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
+      "isActive" : true,
+      "type" : "reference"
     },
     {
-      "text" : "s.",
+      "text" : ".",
       "type" : "text"
     }
   ],
@@ -551,19 +609,9 @@
 },
 "doc://ApolloAPI/documentation/ApolloAPI/DocumentType": {
   "abstract" : [
-    {
-      "text" : "The means of providing the operation document that includes the definition of the operation",
-      "type" : "text"
-    },
-    {
-      "text" : " ",
-      "type" : "text"
-    },
-    {
-      "text" : "over network transport.",
-      "type" : "text"
-    }
+
   ],
+  "deprecated" : true,
   "fragments" : [
     {
       "kind" : "keyword",
@@ -1442,6 +1490,64 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/jsonvalue"
 },
+"doc://ApolloAPI/documentation/ApolloAPI/ListData": {
+  "abstract" : [
+    {
+      "text" : "An opaque wrapper for data representing the value for a list field on a GraphQL object.",
+      "type" : "text"
+    },
+    {
+      "text" : " ",
+      "type" : "text"
+    },
+    {
+      "text" : "This type wraps data from different sources, using a ",
+      "type" : "text"
+    },
+    {
+      "code" : "_transformer",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : " to ensure the raw data from",
+      "type" : "text"
+    },
+    {
+      "text" : " ",
+      "type" : "text"
+    },
+    {
+      "text" : "different sources (which may be in different formats) can be consumed with a consistent API.",
+      "type" : "text"
+    }
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "struct"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "ListData"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/ListData",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "ListData"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "ListData",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/listdata"
+},
 "doc://ApolloAPI/documentation/ApolloAPI/LocalCacheMutation": {
   "abstract" : [
 
@@ -1667,6 +1773,64 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/object"
 },
+"doc://ApolloAPI/documentation/ApolloAPI/ObjectData": {
+  "abstract" : [
+    {
+      "text" : "An opaque wrapper for data representing a GraphQL object. This type wraps data from different",
+      "type" : "text"
+    },
+    {
+      "text" : " ",
+      "type" : "text"
+    },
+    {
+      "text" : "sources, using a ",
+      "type" : "text"
+    },
+    {
+      "code" : "_transformer",
+      "type" : "codeVoice"
+    },
+    {
+      "text" : " to ensure the raw data from different sources (which may be in",
+      "type" : "text"
+    },
+    {
+      "text" : " ",
+      "type" : "text"
+    },
+    {
+      "text" : "different formats) can be consumed with a consistent API.",
+      "type" : "text"
+    }
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "struct"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "ObjectData"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/ObjectData",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "ObjectData"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "ObjectData",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/objectdata"
+},
 "doc://ApolloAPI/documentation/ApolloAPI/OperationDefinition": {
   "abstract" : [
     {
@@ -1700,6 +1864,48 @@
   "title" : "OperationDefinition",
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/operationdefinition"
+},
+"doc://ApolloAPI/documentation/ApolloAPI/OperationDocument": {
+  "abstract" : [
+    {
+      "text" : "The means of providing the operation document that includes the definition of the operation",
+      "type" : "text"
+    },
+    {
+      "text" : " ",
+      "type" : "text"
+    },
+    {
+      "text" : "over network transport.",
+      "type" : "text"
+    }
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "struct"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "OperationDocument"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/OperationDocument",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "OperationDocument"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "OperationDocument",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/operationdocument"
 },
 "doc://ApolloAPI/documentation/ApolloAPI/OutputTypeConvertible": {
   "abstract" : [

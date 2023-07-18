@@ -98,10 +98,13 @@ public enum Target: CaseIterable {
       ),
       operations: .inSchemaModule,
       testMocks: includeTestMocks ? .swiftPackage() : .none,
-      operationIdentifiersPath: includeOperationIdentifiers ?
-      try graphQLFolder(fromTargetRoot: targetRootURL)
-        .childFileURL(fileName: "operationIDs.json")
-        .path : nil
+      operationManifest: includeOperationIdentifiers ?
+        .init(
+          path: try graphQLFolder(fromTargetRoot: targetRootURL)
+            .childFileURL(fileName: "operationIDs.json")
+            .path
+        )
+      : nil
     )
   }
 
@@ -121,8 +124,15 @@ public enum Target: CaseIterable {
 
   public func options() -> ApolloCodegenConfiguration.OutputOptions {
     switch self {
-    case .starWars: return .init(schemaDocumentation: .include, apqs: .automaticallyPersist)
-    case .animalKingdom: return .init(schemaDocumentation: .include)
+    case .starWars: return .init(
+      schemaDocumentation: .include,
+      selectionSetInitializers: .all,
+      operationDocumentFormat: [.definition, .operationId]
+    )
+    case .animalKingdom: return .init(
+      schemaDocumentation: .include,
+      selectionSetInitializers: .all
+    )
     default: return .init()
     }
   }

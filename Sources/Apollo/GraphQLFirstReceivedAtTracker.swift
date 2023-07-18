@@ -2,6 +2,7 @@ import ApolloAPI
 import Foundation
 
 final class GraphQLFirstReceivedAtTracker: GraphQLResultAccumulator {
+  var requiresCacheKeyComputation: Bool { false }
 
   /*
     This accumulator uses max and distantPast for comparisons of the first received date.
@@ -21,6 +22,10 @@ final class GraphQLFirstReceivedAtTracker: GraphQLResultAccumulator {
   }
 
   func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> Date {
+    return firstReceivedAt
+  }
+
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> Date {
     return firstReceivedAt
   }
 

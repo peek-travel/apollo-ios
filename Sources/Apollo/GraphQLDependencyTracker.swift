@@ -6,9 +6,15 @@ import Foundation
 
 final class GraphQLDependencyTracker: GraphQLResultAccumulator {
 
+  let requiresCacheKeyComputation: Bool = true
+
   private var dependentKeys: Set<CacheKey> = Set()
 
   func accept(scalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) {
+    dependentKeys.insert(info.cachePath.joined)
+  }
+
+  func accept(customScalar: JSONValue, firstReceivedAt: Date, info: FieldExecutionInfo) {
     dependentKeys.insert(info.cachePath.joined)
   }
 

@@ -5,63 +5,89 @@ import ApolloAPI
 import Foundation
 
 /// An accumulator that converts executed data to the correct values to create a `SelectionSet`.
-final class GraphQLSelectionSetMapper<SelectionSet: AnySelectionSet>: GraphQLResultAccumulator {
+final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator {
+
+  let requiresCacheKeyComputation: Bool = false
 
   let stripNullValues: Bool
-  let allowMissingValuesForOptionalFields: Bool
+  let handleMissingValues: HandleMissingValues
+
+  enum HandleMissingValues {
+    case disallow
+    case allowForOptionalFields
+    /// Using this option will result in an unsafe `SelectionSet` that will crash
+    /// when a required field that has missing data is accessed.
+    case allowForAllFields
+  }
 
   init(
     stripNullValues: Bool = true,
-    allowMissingValuesForOptionalFields: Bool = false
+    handleMissingValues: HandleMissingValues = .disallow
   ) {
     self.stripNullValues = stripNullValues
-    self.allowMissingValuesForOptionalFields = allowMissingValuesForOptionalFields
+    self.handleMissingValues = handleMissingValues
   }
 
-  func accept(scalar: JSONValue, firstReceivedAt: Date,  info: FieldExecutionInfo) throws -> JSONValue? {
+  func accept(scalar: AnyHashable, firstReceivedAt: Date,  info: FieldExecutionInfo) throws -> AnyHashable? {
     switch info.field.type.namedType {
-    case let .scalar(decodable as any JSONDecodable.Type),
-      let .customScalar(decodable as any JSONDecodable.Type):
-      // This will convert a JSON value to the expected value type,
-      // which could be a custom scalar or an enum.
+    case let .scalar(decodable as any JSONDecodable.Type):
+      // This will convert a JSON value to the expected value type.
       return try decodable.init(_jsonValue: scalar)._asAnyHashable
     default:
       preconditionFailure()
     }
   }
 
-  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> JSONValue? {
-    return stripNullValues ? nil : NSNull()
+  func accept(customScalar: AnyHashable, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
+    switch info.field.type.namedType {
+    case let .customScalar(decodable as any JSONDecodable.Type):
+      // This will convert a JSON value to the expected value type,
+      // which could be a custom scalar or an enum.
+      return try decodable.init(_jsonValue: customScalar)._asAnyHashable
+    default:
+      preconditionFailure()
+    }
   }
 
-  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> JSONValue? {
-    guard allowMissingValuesForOptionalFields && info.field.type.isNullable else {
+  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> AnyHashable? {
+    return stripNullValues ? nil : Optional<AnyHashable>.none
+  }
+
+  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
+    switch handleMissingValues {
+    case .allowForOptionalFields where info.field.type.isNullable: fallthrough
+    case .allowForAllFields:
+      return nil
+
+    default:
       throw JSONDecodingError.missingValue
     }
-    return nil
   }
 
-  func accept(list: [JSONValue?], info: FieldExecutionInfo) -> JSONValue? {
+  func accept(list: [AnyHashable?], info: FieldExecutionInfo) -> AnyHashable? {
     return list
   }
 
-  func accept(childObject: JSONObject, info: FieldExecutionInfo) throws -> JSONValue? {
+  func accept(childObject: DataDict, info: FieldExecutionInfo) throws -> AnyHashable? {
     return childObject
   }
 
-  func accept(fieldEntry: JSONValue?, info: FieldExecutionInfo) -> (key: String, value: JSONValue)? {
+  func accept(fieldEntry: AnyHashable?, info: FieldExecutionInfo) -> (key: String, value: AnyHashable)? {
     guard let fieldEntry = fieldEntry else { return nil }
     return (info.responseKeyForField, fieldEntry)
   }
-
+ 
   func accept(
-    fieldEntries: [(key: String, value: JSONValue)],
+    fieldEntries: [(key: String, value: AnyHashable)],
     info: ObjectExecutionInfo
-  ) throws -> JSONObject {
-    return .init(fieldEntries, uniquingKeysWith: { (_, last) in last })
+  ) throws -> DataDict {
+    return DataDict(
+      data: .init(fieldEntries, uniquingKeysWith: { (_, last) in last }),
+      fulfilledFragments: info.fulfilledFragments
+    )
   }
 
-  func finish(rootValue: JSONObject, info: ObjectExecutionInfo) -> SelectionSet {
-    return SelectionSet.init(data: DataDict(rootValue, variables: info.variables))
+  func finish(rootValue: DataDict, info: ObjectExecutionInfo) -> T {
+    return T.init(_dataDict: rootValue)
   }
 }

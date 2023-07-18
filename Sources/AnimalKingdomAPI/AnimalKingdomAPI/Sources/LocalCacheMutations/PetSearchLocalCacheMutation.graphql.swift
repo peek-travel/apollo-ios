@@ -27,7 +27,7 @@ public class PetSearchLocalCacheMutation: LocalCacheMutation {
 
   public struct Data: AnimalKingdomAPI.MutableSelectionSet {
     public var __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public static var __parentType: ApolloAPI.ParentType { AnimalKingdomAPI.Objects.Query }
     public static var __selections: [ApolloAPI.Selection] { [
@@ -39,15 +39,30 @@ public class PetSearchLocalCacheMutation: LocalCacheMutation {
       set { __data["pets"] = newValue }
     }
 
+    public init(
+      pets: [Pet]
+    ) {
+      self.init(_dataDict: DataDict(
+        data: [
+          "__typename": AnimalKingdomAPI.Objects.Query.typename,
+          "pets": pets._fieldData,
+        ],
+        fulfilledFragments: [
+          ObjectIdentifier(PetSearchLocalCacheMutation.Data.self)
+        ]
+      ))
+    }
+
     /// Pet
     ///
     /// Parent Type: `Pet`
     public struct Pet: AnimalKingdomAPI.MutableSelectionSet {
       public var __data: DataDict
-      public init(data: DataDict) { __data = data }
+      public init(_dataDict: DataDict) { __data = _dataDict }
 
       public static var __parentType: ApolloAPI.ParentType { AnimalKingdomAPI.Interfaces.Pet }
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("id", AnimalKingdomAPI.ID.self),
         .field("humanName", String?.self),
       ] }
@@ -59,6 +74,23 @@ public class PetSearchLocalCacheMutation: LocalCacheMutation {
       public var humanName: String? {
         get { __data["humanName"] }
         set { __data["humanName"] = newValue }
+      }
+
+      public init(
+        __typename: String,
+        id: AnimalKingdomAPI.ID,
+        humanName: String? = nil
+      ) {
+        self.init(_dataDict: DataDict(
+          data: [
+            "__typename": __typename,
+            "id": id,
+            "humanName": humanName,
+          ],
+          fulfilledFragments: [
+            ObjectIdentifier(PetSearchLocalCacheMutation.Data.Pet.self)
+          ]
+        ))
       }
     }
   }

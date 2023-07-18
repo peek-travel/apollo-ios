@@ -25,9 +25,9 @@ public extension Mock where O == PetRock {
     owner: Mock<Human>? = nil
   ) {
     self.init()
-    self.favoriteToy = favoriteToy
-    self.humanName = humanName
-    self.id = id
-    self.owner = owner
+    _setScalar(favoriteToy, for: \.favoriteToy)
+    _setScalar(humanName, for: \.humanName)
+    _setScalar(id, for: \.id)
+    _setEntity(owner, for: \.owner)
   }
 }

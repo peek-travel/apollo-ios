@@ -4,8 +4,9 @@ import Foundation
 extension String {
   /// Renders the string as the property name for a field accessor on a generated `SelectionSet`.
   /// This escapes the names of properties that would conflict with Swift reserved keywords.
-  var asFieldAccessorPropertyName: String {
-    escapeIf(in: SwiftKeywords.FieldAccessorNamesToEscape)
+  var asFieldPropertyName: String {
+    let str = self.isAllUppercased ? self.lowercased() : self.firstLowercased
+    return str.escapeIf(in: SwiftKeywords.FieldAccessorNamesToEscape)
   }
 
   var asEnumCaseName: String {
@@ -13,14 +14,16 @@ extension String {
   }
 
   var asSelectionSetName: String {
-    SwiftKeywords.SelectionSetTypeNamesToSuffix.contains(self) ?
+    SwiftKeywords.TypeNamesToSuffix.contains(self) ?
     "\(self)_SelectionSet" : self
   }
-
-  var asInputParameterName: String {
-    escapeIf(in: SwiftKeywords.InputParameterNamesToEscape).firstLowercased
+  
+  var asFragmentName: String {
+    let uppercasedName = self.firstUppercased
+    return SwiftKeywords.TypeNamesToSuffix.contains(uppercasedName) ?
+            "\(uppercasedName)_Fragment" : uppercasedName
   }
-
+  
   var asTestMockFieldPropertyName: String {
     escapeIf(in: SwiftKeywords.TestMockFieldNamesToEscape)
   }
@@ -28,6 +31,10 @@ extension String {
   var asTestMockInitializerParameterName: String? {
     SwiftKeywords.TestMockInitializerParametersToSuffix.contains(self) ?
     "\(self)_value" : nil
+  }
+
+  var isConflictingTestMockFieldName: Bool {
+    SwiftKeywords.TestMockConflictingFieldNames.contains(self)
   }
 
   private func escapeIf(in set: Set<String>) -> String {
@@ -38,7 +45,7 @@ extension String {
 enum SwiftKeywords {
 
   static let DisallowedFieldNames: Set<String> = [
-    "__data", "fragments", "_"
+    "__data", "fragments"
   ]
 
   static let DisallowedInputParameterNames: Set<String> = [
@@ -48,8 +55,12 @@ enum SwiftKeywords {
   static let DisallowedSchemaNamespaceNames: Set<String> = [
     "schema", "apolloapi"
   ]
+  
+  static let DisallowedEmbeddedTargetNames: Set<String> = [
+    "apollo", "apolloapi"
+  ]
 
-  static let SelectionSetTypeNamesToSuffix: Set<String> = [
+  static let TypeNamesToSuffix: Set<String> = [
     "Any",
     "DataDict",
     "DocumentType",
@@ -66,7 +77,9 @@ enum SwiftKeywords {
     "Float",
     "Double",
     "ID",
-    "Type"
+    "Type",
+    "Error",
+    "_",
   ]
 
   /// When an interface or union named "Actor" is used as the type for a field on a test mock,
@@ -78,6 +91,13 @@ enum SwiftKeywords {
   /// class is generated in the Test Mocks directory. That class will be recognized by the compiler.
   static let TestMockFieldAbstractTypeNamesToNamespace: Set<String> = [
     "Actor"
+  ]
+
+  /// There are some field names that conflict with function names due to the @dynamicMember
+  /// subscripting of `Mock`. This set is used to match those field names and generate properties
+  /// instead of just relying on the subscript access.
+  static let TestMockConflictingFieldNames: Set<String> = [
+    "hash"
   ]
 
   fileprivate static let FieldAccessorNamesToEscape: Set<String> = [
@@ -114,6 +134,7 @@ enum SwiftKeywords {
     "do",
     "else",
     "fallthrough",
+    "for",
     "guard",
     "if",
     "in",
@@ -133,6 +154,7 @@ enum SwiftKeywords {
     "throws",
     "true",
     "try",
+    "_",
   ]
 
   fileprivate static let InputParameterNamesToEscape: Set<String> = FieldAccessorNamesToEscape

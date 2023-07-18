@@ -5,7 +5,7 @@
 
 public class HeroAndFriendsNamesWithFragmentQuery: GraphQLQuery {
   public static let operationName: String = "HeroAndFriendsNamesWithFragment"
-  public static let document: ApolloAPI.DocumentType = .automaticallyPersisted(
+  public static let operationDocument: ApolloAPI.OperationDocument = .init(
     operationIdentifier: "1d3ad903dad146ff9d7aa09813fc01becd017489bfc1af8ffd178498730a5a26",
     definition: .init(
       #"""
@@ -30,7 +30,7 @@ public class HeroAndFriendsNamesWithFragmentQuery: GraphQLQuery {
 
   public struct Data: StarWarsAPI.SelectionSet {
     public let __data: DataDict
-    public init(data: DataDict) { __data = data }
+    public init(_dataDict: DataDict) { __data = _dataDict }
 
     public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Objects.Query }
     public static var __selections: [ApolloAPI.Selection] { [
@@ -39,15 +39,30 @@ public class HeroAndFriendsNamesWithFragmentQuery: GraphQLQuery {
 
     public var hero: Hero? { __data["hero"] }
 
+    public init(
+      hero: Hero? = nil
+    ) {
+      self.init(_dataDict: DataDict(
+        data: [
+          "__typename": StarWarsAPI.Objects.Query.typename,
+          "hero": hero._fieldData,
+        ],
+        fulfilledFragments: [
+          ObjectIdentifier(HeroAndFriendsNamesWithFragmentQuery.Data.self)
+        ]
+      ))
+    }
+
     /// Hero
     ///
     /// Parent Type: `Character`
     public struct Hero: StarWarsAPI.SelectionSet {
       public let __data: DataDict
-      public init(data: DataDict) { __data = data }
+      public init(_dataDict: DataDict) { __data = _dataDict }
 
       public static var __parentType: ApolloAPI.ParentType { StarWarsAPI.Interfaces.Character }
       public static var __selections: [ApolloAPI.Selection] { [
+        .field("__typename", String.self),
         .field("name", String.self),
         .fragment(FriendsNames.self),
       ] }
@@ -59,9 +74,27 @@ public class HeroAndFriendsNamesWithFragmentQuery: GraphQLQuery {
 
       public struct Fragments: FragmentContainer {
         public let __data: DataDict
-        public init(data: DataDict) { __data = data }
+        public init(_dataDict: DataDict) { __data = _dataDict }
 
         public var friendsNames: FriendsNames { _toFragment() }
+      }
+
+      public init(
+        __typename: String,
+        name: String,
+        friends: [FriendsNames.Friend?]? = nil
+      ) {
+        self.init(_dataDict: DataDict(
+          data: [
+            "__typename": __typename,
+            "name": name,
+            "friends": friends._fieldData,
+          ],
+          fulfilledFragments: [
+            ObjectIdentifier(HeroAndFriendsNamesWithFragmentQuery.Data.Hero.self),
+            ObjectIdentifier(FriendsNames.self)
+          ]
+        ))
       }
     }
   }

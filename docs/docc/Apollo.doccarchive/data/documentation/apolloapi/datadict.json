@@ -1,15 +1,16 @@
 {
   "abstract" : [
     {
-      "text" : "A structure that wraps the underlying data dictionary used by ",
+      "text" : "A structure that wraps the underlying data for a ",
       "type" : "text"
     },
     {
-      "code" : "SelectionSet",
-      "type" : "codeVoice"
+      "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
+      "isActive" : true,
+      "type" : "reference"
     },
     {
-      "text" : "s.",
+      "text" : ".",
       "type" : "text"
     }
   ],
@@ -114,7 +115,7 @@
     },
     {
       "identifiers" : [
-        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/DataDict\/init(_:variables:)"
+        "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/DataDict\/init(data:fulfilledFragments:)"
       ],
       "title" : "Initializers"
     },
@@ -218,15 +219,16 @@
 "doc://ApolloAPI/documentation/ApolloAPI/DataDict": {
   "abstract" : [
     {
-      "text" : "A structure that wraps the underlying data dictionary used by ",
+      "text" : "A structure that wraps the underlying data for a ",
       "type" : "text"
     },
     {
-      "code" : "SelectionSet",
-      "type" : "codeVoice"
+      "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
+      "isActive" : true,
+      "type" : "reference"
     },
     {
-      "text" : "s.",
+      "text" : ".",
       "type" : "text"
     }
   ],
@@ -386,7 +388,7 @@
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/datadict\/hash(into:)"
 },
-"doc://ApolloAPI/documentation/ApolloAPI/DataDict/init(_:variables:)": {
+"doc://ApolloAPI/documentation/ApolloAPI/DataDict/init(data:fulfilledFragments:)": {
   "abstract" : [
 
   ],
@@ -400,17 +402,8 @@
       "text" : "("
     },
     {
-      "kind" : "typeIdentifier",
-      "preciseIdentifier" : "s:9ApolloAPI10JSONObjecta",
-      "text" : "JSONObject"
-    },
-    {
-      "kind" : "text",
-      "text" : ", "
-    },
-    {
       "kind" : "externalParam",
-      "text" : "variables"
+      "text" : "data"
     },
     {
       "kind" : "text",
@@ -427,20 +420,46 @@
     },
     {
       "kind" : "typeIdentifier",
-      "preciseIdentifier" : "s:9ApolloAPI29GraphQLOperationVariableValueP",
-      "text" : "GraphQLOperationVariableValue"
+      "preciseIdentifier" : "s:s11AnyHashableV",
+      "text" : "AnyHashable"
     },
     {
       "kind" : "text",
-      "text" : "]?)"
+      "text" : "], "
+    },
+    {
+      "kind" : "externalParam",
+      "text" : "fulfilledFragments"
+    },
+    {
+      "kind" : "text",
+      "text" : ": "
+    },
+    {
+      "kind" : "typeIdentifier",
+      "preciseIdentifier" : "s:Sh",
+      "text" : "Set"
+    },
+    {
+      "kind" : "text",
+      "text" : "<"
+    },
+    {
+      "kind" : "typeIdentifier",
+      "preciseIdentifier" : "s:SO",
+      "text" : "ObjectIdentifier"
+    },
+    {
+      "kind" : "text",
+      "text" : ">)"
     }
   ],
-  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/DataDict\/init(_:variables:)",
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/DataDict\/init(data:fulfilledFragments:)",
   "kind" : "symbol",
   "role" : "symbol",
-  "title" : "init(_:variables:)",
+  "title" : "init(data:fulfilledFragments:)",
   "type" : "topic",
-  "url" : "\/documentation\/apolloapi\/datadict\/init(_:variables:)"
+  "url" : "\/documentation\/apolloapi\/datadict\/init(data:fulfilledfragments:)"
 },
 "doc://ApolloAPI/documentation/ApolloAPI/DataDict/subscript(_:)-5tqti": {
   "abstract" : [
@@ -525,6 +544,37 @@
   "title" : "subscript(_:)",
   "type" : "topic",
   "url" : "\/documentation\/apolloapi\/datadict\/subscript(_:)-7aefb"
+},
+"doc://ApolloAPI/documentation/ApolloAPI/SelectionSet": {
+  "abstract" : [
+
+  ],
+  "fragments" : [
+    {
+      "kind" : "keyword",
+      "text" : "protocol"
+    },
+    {
+      "kind" : "text",
+      "text" : " "
+    },
+    {
+      "kind" : "identifier",
+      "text" : "SelectionSet"
+    }
+  ],
+  "identifier" : "doc:\/\/ApolloAPI\/documentation\/ApolloAPI\/SelectionSet",
+  "kind" : "symbol",
+  "navigatorTitle" : [
+    {
+      "kind" : "identifier",
+      "text" : "SelectionSet"
+    }
+  ],
+  "role" : "symbol",
+  "title" : "SelectionSet",
+  "type" : "topic",
+  "url" : "\/documentation\/apolloapi\/selectionset"
 }
 }
 }

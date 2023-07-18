@@ -33,13 +33,13 @@ public extension Mock where O == Fish {
     species: String? = nil
   ) {
     self.init()
-    self.favoriteToy = favoriteToy
-    self.height = height
-    self.humanName = humanName
-    self.id = id
-    self.owner = owner
-    self.predators = predators
-    self.skinCovering = skinCovering
-    self.species = species
+    _setScalar(favoriteToy, for: \.favoriteToy)
+    _setEntity(height, for: \.height)
+    _setScalar(humanName, for: \.humanName)
+    _setScalar(id, for: \.id)
+    _setEntity(owner, for: \.owner)
+    _setList(predators, for: \.predators)
+    _setScalar(skinCovering, for: \.skinCovering)
+    _setScalar(species, for: \.species)
   }
 }
