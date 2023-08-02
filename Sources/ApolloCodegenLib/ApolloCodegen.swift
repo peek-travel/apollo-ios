@@ -124,6 +124,37 @@ public class ApolloCodegen {
       )
     }
   }
+  
+  public static func generateOperationManifest(
+    with configuration: ApolloCodegenConfiguration,
+    withRootURL rootURL: URL? = nil,
+    fileManager: ApolloFileManager = .default
+  ) throws {
+    let configContext = ConfigurationContext(
+      config: configuration,
+      rootURL: rootURL
+    )
+    
+    try validate(configContext)
+    
+    let compilationResult = try compileGraphQLResult(
+      configContext,
+      experimentalFeatures: configuration.experimentalFeatures
+    )
+    
+    try validate(configContext, with: compilationResult)
+    
+    let ir = IR(compilationResult: compilationResult)
+    
+    var operationIDsFileGenerator = OperationManifestFileGenerator(config: configContext)
+    
+    for operation in compilationResult.operations {
+      let irOperation = ir.build(operation: operation)
+      operationIDsFileGenerator?.collectOperationIdentifier(irOperation)
+    }
+    
+    try operationIDsFileGenerator?.generate(fileManager: fileManager)
+  }
 
   // MARK: Internal
 
@@ -305,8 +336,14 @@ public class ApolloCodegen {
     )
 
     guard graphqlErrors.isEmpty else {
-      let errorlines = graphqlErrors.flatMap({ $0.logLines })
-      CodegenLogger.log(String(describing: errorlines), logLevel: .error)
+      let errorlines = graphqlErrors.flatMap({
+        if let logLines = $0.logLines {
+          return logLines
+        } else {
+          return ["\($0.name ?? "unknown"): \($0.message ?? "")"]
+        }
+      })
+      CodegenLogger.log(errorlines.joined(separator: "\n"), logLevel: .error)
       throw Error.graphQLSourceValidationFailure(atLines: errorlines)
     }
 
