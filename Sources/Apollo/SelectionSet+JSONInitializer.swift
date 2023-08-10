@@ -1,6 +1,7 @@
 #if !COCOAPODS
 import ApolloAPI
 #endif
+import Foundation
 
 extension RootSelectionSet {
 
