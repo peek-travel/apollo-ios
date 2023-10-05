@@ -10,8 +10,6 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
 
   let target: TemplateTarget = .operationFile
 
-  var finalKeyword: String { self.config.options.finalOperationDefinitions ? "final" : "" }
-
   var template: TemplateString {
     let definition = IR.Definition.operation(operation)
 
@@ -48,7 +46,7 @@ struct OperationDefinitionTemplate: OperationTemplateRenderer {
   private func OperationDeclaration() -> TemplateString {
     return """
     \(accessControlModifier(for: .parent))\
-    \(finalKeyword) class \(operation.generatedDefinitionName): \
+    \(classDefinitionKeywords) \(operation.generatedDefinitionName): \
     \(operation.definition.operationType.renderedProtocolName) {
       \(accessControlModifier(for: .member))\
     static let operationName: String = "\(operation.definition.name)"

@@ -164,16 +164,15 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     public let operations: OperationsFileOutput
     /// The local path structure for the test mock operation object files.
     public let testMocks: TestMockFileOutput
-    /// Configures the generation of an operation manifest JSON file for use with persisted queries
-    /// or [Automatic Persisted Queries (APQs)](https://www.apollographql.com/docs/apollo-server/performance/apq).
-    /// Defaults to `nil`.
-    public let operationManifest: OperationManifestFileOutput?
+    
+    /// This var helps maintain backwards compatibility with legacy operation manifest generation
+    /// with the new `OperationManifestConfiguration` and will be fully removed in v2.0
+    fileprivate let operationIDsPath: String?
 
     /// Default property values
     public struct Default {
       public static let operations: OperationsFileOutput = .inSchemaModule
       public static let testMocks: TestMockFileOutput = .none
-      public static let operationManifest: OperationManifestFileOutput? = nil
     }
 
     /// Designated initializer.
@@ -191,13 +190,12 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     public init(
       schemaTypes: SchemaTypesFileOutput,
       operations: OperationsFileOutput = Default.operations,
-      testMocks: TestMockFileOutput = Default.testMocks,
-      operationManifest: OperationManifestFileOutput? = Default.operationManifest
+      testMocks: TestMockFileOutput = Default.testMocks
     ) {
       self.schemaTypes = schemaTypes
       self.operations = operations
       self.testMocks = testMocks
-      self.operationManifest = operationManifest
+      self.operationIDsPath = nil
     }
 
     // MARK: Codable
@@ -206,7 +204,6 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       case schemaTypes
       case operations
       case testMocks
-      case operationManifest
       case operationIdentifiersPath
     }
 
@@ -228,21 +225,10 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
         forKey: .testMocks
       )
 
-      if let operationManifest = try values.decodeIfPresent(
-        OperationManifestFileOutput.self,
-        forKey: .operationManifest
-      ) {
-        self.operationManifest = operationManifest
-
-      } else if let operationIdsPath = try values.decodeIfPresent(
+      operationIDsPath = try values.decodeIfPresent(
         String.self,
         forKey: .operationIdentifiersPath
-      ){
-        self.operationManifest = .init(path: operationIdsPath, version: .legacyAPQ)
-
-      } else {
-        self.operationManifest = nil
-      }
+      )
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -251,7 +237,6 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       try container.encode(self.schemaTypes, forKey: .schemaTypes)
       try container.encode(self.operations, forKey: .operations)
       try container.encode(self.testMocks, forKey: .testMocks)
-      try container.encode(self.operationManifest, forKey: .operationManifest)
     }
   }
 
@@ -470,41 +455,6 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     }
   }
 
-  /// Configures the generation of an operation manifest JSON file for use with persisted queries
-  /// or [Automatic Persisted Queries (APQs)](https://www.apollographql.com/docs/apollo-server/performance/apq).
-  ///
-  /// The operation manifest is a JSON file that maps all generated GraphQL operations to an
-  /// operation identifier. This manifest can be used to register operations with a server utilizing
-  /// persisted queries
-  /// or [Automatic Persisted Queries (APQs)](https://www.apollographql.com/docs/apollo-server/performance/apq).
-  /// Defaults to `nil`.
-  public struct OperationManifestFileOutput: Codable, Equatable {
-    /// Local path where the generated operation manifest file should be written.
-    let path: String
-    /// The version format to use when generating the operation manifest. Defaults to `.persistedQueries`.
-    let version: Version
-
-    public enum Version: String, Codable, Equatable {
-      /// Generates an operation manifest for use with persisted queries.
-      case persistedQueries
-      /// Generates an operation manifest for pre-registering operations with the legacy
-      /// [Automatic Persisted Queries (APQs)](https://www.apollographql.com/docs/apollo-server/performance/apq).
-      /// functionality of Apollo Server/Router.
-      case legacyAPQ
-    }
-
-    /// Designated Initializer
-    /// - Parameters:
-    ///   - path: Local path where the generated operation manifest file should be written.
-    ///   - version: The version format to use when generating the operation manifest.
-    ///   Defaults to `.persistedQueries`.
-    public init(path: String, version: Version = .persistedQueries) {
-      self.path = path
-      self.version = version
-    }
-
-  }
-
   // MARK: - Other Types
   public struct OutputOptions: Codable, Equatable {
     /// Any non-default rules for pluralization or singularization you wish to include.
@@ -553,8 +503,8 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     ///
     ///  Defaults to `true`.
     public let pruneGeneratedFiles: Bool
-    /// Whether generated GraphQL operation types will be marked as `final`.
-    public let finalOperationDefinitions: Bool
+    /// Whether generated GraphQL operation and local cache mutation class types will be marked as `final`.
+    public let markOperationDefinitionsAsFinal: Bool
 
     /// Default property values
     public struct Default {
@@ -567,7 +517,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       public static let warningsOnDeprecatedUsage: Composition = .include
       public static let conversionStrategies: ConversionStrategies = .init()
       public static let pruneGeneratedFiles: Bool = true
-      public static let finalOperationDefinitions: Bool = false
+      public static let markOperationDefinitionsAsFinal: Bool = false
     }
 
     /// Designated initializer.
@@ -588,7 +538,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     ///   - conversionStrategies: Rules for how to convert the names of values from the schema in
     ///     generated code.
     ///   - pruneGeneratedFiles: Whether unused generated files will be automatically deleted.
-    ///   - finalOperationDefinitions: Whether generated GraphQL operation types will be marked as `final`.
+    ///   - markOperationDefinitionsAsFinal: Whether generated GraphQL operation and local cache mutation class types will be marked as `final`.
     public init(
       additionalInflectionRules: [InflectionRule] = Default.additionalInflectionRules,
       deprecatedEnumCases: Composition = Default.deprecatedEnumCases,
@@ -599,7 +549,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       warningsOnDeprecatedUsage: Composition = Default.warningsOnDeprecatedUsage,
       conversionStrategies: ConversionStrategies = Default.conversionStrategies,
       pruneGeneratedFiles: Bool = Default.pruneGeneratedFiles,
-      finalOperationDefinitions: Bool = Default.finalOperationDefinitions
+      markOperationDefinitionsAsFinal: Bool = Default.markOperationDefinitionsAsFinal
     ) {
       self.additionalInflectionRules = additionalInflectionRules
       self.deprecatedEnumCases = deprecatedEnumCases
@@ -610,7 +560,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       self.warningsOnDeprecatedUsage = warningsOnDeprecatedUsage
       self.conversionStrategies = conversionStrategies
       self.pruneGeneratedFiles = pruneGeneratedFiles
-      self.finalOperationDefinitions = finalOperationDefinitions
+      self.markOperationDefinitionsAsFinal = markOperationDefinitionsAsFinal
     }
 
     // MARK: Codable
@@ -627,7 +577,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       case warningsOnDeprecatedUsage
       case conversionStrategies
       case pruneGeneratedFiles
-      case finalOperationDefinitions
+      case markOperationDefinitionsAsFinal
     }
 
     public init(from decoder: Decoder) throws {
@@ -684,10 +634,10 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
         forKey: .pruneGeneratedFiles
       ) ?? Default.pruneGeneratedFiles
 
-      finalOperationDefinitions = try values.decodeIfPresent(
+      markOperationDefinitionsAsFinal = try values.decodeIfPresent(
         Bool.self,
-        forKey: .finalOperationDefinitions
-      ) ?? Default.finalOperationDefinitions
+        forKey: .markOperationDefinitionsAsFinal
+      ) ?? Default.markOperationDefinitionsAsFinal
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -702,7 +652,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       try container.encode(self.warningsOnDeprecatedUsage, forKey: .warningsOnDeprecatedUsage)
       try container.encode(self.conversionStrategies, forKey: .conversionStrategies)
       try container.encode(self.pruneGeneratedFiles, forKey: .pruneGeneratedFiles)
-      try container.encode(self.finalOperationDefinitions, forKey: .finalOperationDefinitions)
+      try container.encode(self.markOperationDefinitionsAsFinal, forKey: .markOperationDefinitionsAsFinal)
     }
   }
 
@@ -714,37 +664,63 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     case exclude
   }
 
-  /// ``CaseConversionStrategy`` is used to specify the strategy used to convert the casing of
-  /// GraphQL schema values into generated Swift code.
-  public enum CaseConversionStrategy: String, Codable, Equatable {
-    /// Generates swift code using the exact name provided in the GraphQL schema
-    /// performing no conversion.
-    case none
-    /// Convert to lower camel case from `snake_case`, `UpperCamelCase`, or `UPPERCASE`.
-    case camelCase
-  }
-
   /// ``ConversionStrategies`` configures rules for how to convert the names of values from the
   /// schema in generated code.
   public struct ConversionStrategies: Codable, Equatable {
+
+    /// ``ApolloCodegenConfiguration/ConversionStrategies/EnumCase`` is used to specify the strategy
+    /// used to convert the casing of enum cases in a GraphQL schema into generated Swift code.
+    public enum EnumCases: String, Codable, Equatable {
+      /// Generates swift code using the exact name provided in the GraphQL schema
+      /// performing no conversion.
+      case none
+      /// Convert to lower camel case from `snake_case`, `UpperCamelCase`, or `UPPERCASE`.
+      case camelCase
+    }
+
+    /// ``ApolloCodegenConfiguration/ConversionStrategies/FieldAccessors`` is used to specify the
+    /// strategy used to convert the casing of fields on GraphQL selection sets into field accessors
+    /// on the response models in generated Swift code.
+    public enum FieldAccessors: String, Codable, Equatable {
+      /// This conversion strategy will:
+      /// - Lowercase the first letter of all fields.
+      /// - Convert field names that are all `UPPERCASE` to all `lowercase`.
+      case idiomatic
+      /// This conversion strategy will:
+      /// - Convert to `lowerCamelCase` from `snake_case`, or `UpperCamelCase`.
+      /// - Convert field names that are all `UPPERCASE` to all `lowercase`.
+      case camelCase
+    }
+    
     /// Determines how the names of enum cases in the GraphQL schema will be converted into
     /// cases on the generated Swift enums.
     /// Defaultss to ``ApolloCodegenConfiguration/CaseConversionStrategy/camelCase``
-    public let enumCases: CaseConversionStrategy
+    public let enumCases: EnumCases
+    
+    /// Determines how the names of fields in the GraphQL schema will be converted into
+    /// properties in the generated Swift code.
+    /// Defaults to ``ApolloCodegenConfiguration/CaseConversionStrategy/camelCase``
+    public let fieldAccessors: FieldAccessors
 
     /// Default property values
     public struct Default {
-      public static let enumCases: CaseConversionStrategy = .camelCase
+      public static let enumCases: EnumCases = .camelCase
+      public static let fieldAccessors: FieldAccessors = .idiomatic
     }
-
-    public init(enumCases: CaseConversionStrategy = Default.enumCases) {
+      
+    public init(
+      enumCases: EnumCases = Default.enumCases,
+      fieldAccessors: FieldAccessors = Default.fieldAccessors
+    ) {
       self.enumCases = enumCases
+      self.fieldAccessors = fieldAccessors
     }
 
     // MARK: Codable
 
     public enum CodingKeys: CodingKey {
       case enumCases
+      case fieldAccessors
     }
 
     public init(from decoder: Decoder) throws {
@@ -752,18 +728,37 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
       guard values.allKeys.first != nil else {
         throw DecodingError.typeMismatch(Self.self, DecodingError.Context.init(
           codingPath: values.codingPath,
-          debugDescription: "Invalid number of keys found, expected one.",
+          debugDescription: "Invalid value found.",
           underlyingError: nil
         ))
       }
 
-      enumCases = try values.decodeIfPresent(
+      if let deprecatedEnumCase = try? values.decodeIfPresent(
         CaseConversionStrategy.self,
         forKey: .enumCases
-      ) ?? Default.enumCases
+      ) {
+        switch deprecatedEnumCase {
+        case .none:
+          enumCases = .none
+        case .camelCase:
+          enumCases = .camelCase
+        }
+      } else {
+        enumCases = try values.decodeIfPresent(
+          EnumCases.self,
+          forKey: .enumCases
+        ) ?? Default.enumCases
+      }
+      
+      fieldAccessors = try values.decodeIfPresent(
+        FieldAccessors.self,
+        forKey: .fieldAccessors
+      ) ?? Default.fieldAccessors
     }
   }
-
+  
+  // MARK: - OperationDocumentFormat
+  
   public struct OperationDocumentFormat: OptionSet, Codable, Equatable {
     /// Include the GraphQL source document for the operation in the generated operation models.
     public static let definition = Self(rawValue: 1)
@@ -957,7 +952,7 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
   /// The input files required for code generation.
   public let input: FileInput
   /// The paths and files output by code generation.
-  public let output: FileOutput
+  public var output: FileOutput
   /// Rules and options to customize the generated code.
   public let options: OutputOptions
   /// Allows users to enable experimental features.
@@ -966,12 +961,15 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
   /// available.
   public let experimentalFeatures: ExperimentalFeatures
   /// Schema download configuration.
-  public let schemaDownloadConfiguration: ApolloSchemaDownloadConfiguration?
+  public let schemaDownload: ApolloSchemaDownloadConfiguration?
+  /// Configuration for generating an operation manifest for use with persisted queries.
+  public let operationManifest: OperationManifestConfiguration?
 
   public struct Default {
     public static let options: OutputOptions = OutputOptions()
     public static let experimentalFeatures: ExperimentalFeatures = ExperimentalFeatures()
-    public static let schemaDownloadConfiguration: ApolloSchemaDownloadConfiguration? = nil
+    public static let schemaDownload: ApolloSchemaDownloadConfiguration? = nil
+    public static let operationManifest: OperationManifestConfiguration? = nil
   }
 
   // MARK: - Helper Properties
@@ -994,14 +992,16 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     output: FileOutput,
     options: OutputOptions = Default.options,
     experimentalFeatures: ExperimentalFeatures = Default.experimentalFeatures,
-    schemaDownloadConfiguration: ApolloSchemaDownloadConfiguration? = Default.schemaDownloadConfiguration
+    schemaDownload: ApolloSchemaDownloadConfiguration? = Default.schemaDownload,
+    operationManifest: OperationManifestConfiguration? = Default.operationManifest
   ) {
     self.schemaNamespace = schemaNamespace
     self.input = input
     self.output = output
     self.options = options
     self.experimentalFeatures = experimentalFeatures
-    self.schemaDownloadConfiguration = schemaDownloadConfiguration
+    self.schemaDownload = schemaDownload
+    self.operationManifest = operationManifest
     self.ApolloAPITargetName = options.cocoapodsCompatibleImportStatements ? "Apollo" : "ApolloAPI"
   }
 
@@ -1015,6 +1015,8 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     case options
     case experimentalFeatures
     case schemaDownloadConfiguration
+    case schemaDownload
+    case operationManifest
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -1026,8 +1028,12 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
     try container.encode(self.options, forKey: .options)
     try container.encode(experimentalFeatures, forKey: .experimentalFeatures)
 
-    if let schemaDownloadConfiguration {
-      try container.encode(schemaDownloadConfiguration, forKey: .schemaDownloadConfiguration)
+    if let schemaDownload {
+      try container.encode(schemaDownload, forKey: .schemaDownload)
+    }
+    
+    if let operationManifest {
+      try container.encode(operationManifest, forKey: .operationManifest)
     }
   }
 
@@ -1051,23 +1057,39 @@ public struct ApolloCodegenConfiguration: Codable, Equatable {
         )
       )
     }
+    
+    let fileOutput = try values.decode(FileOutput.self, forKey: .output)
+    let options = try values.decodeIfPresent(
+      OutputOptions.self,
+      forKey: .options
+    ) ?? Default.options
+    
+    var operationManifest = try values.decodeIfPresent(OperationManifestConfiguration.self, forKey: .operationManifest)
+    if operationManifest == nil {
+      if let operationIDsPath = fileOutput.operationIDsPath {
+        operationManifest = OperationManifestConfiguration(
+          path: operationIDsPath,
+          version: .legacy
+        )
+      }
+    }
+    
+    var schemaDownload = try values.decodeIfPresent(ApolloSchemaDownloadConfiguration.self, forKey: .schemaDownload)
+    if schemaDownload == nil {
+      schemaDownload = try values.decodeIfPresent(ApolloSchemaDownloadConfiguration.self, forKey: .schemaDownloadConfiguration)
+    }
 
     self.init(
       schemaNamespace: try getSchemaNamespaceValue(),
       input: try values.decode(FileInput.self, forKey: .input),
-      output: try values.decode(FileOutput.self, forKey: .output),
-      options: try values.decodeIfPresent(
-        OutputOptions.self,
-        forKey: .options
-      ) ?? Default.options,
+      output: fileOutput,
+      options: options,
       experimentalFeatures: try values.decodeIfPresent(
         ExperimentalFeatures.self,
         forKey: .experimentalFeatures
       ) ?? Default.experimentalFeatures,
-      schemaDownloadConfiguration: try values.decodeIfPresent(
-        ApolloSchemaDownloadConfiguration.self,
-        forKey: .schemaDownloadConfiguration
-      ) ?? Default.schemaDownloadConfiguration
+      schemaDownload: schemaDownload ?? Default.schemaDownload,
+      operationManifest: operationManifest ?? Default.operationManifest
     )
   }
 }
@@ -1206,7 +1228,7 @@ extension ApolloCodegenConfiguration {
   @available(*, deprecated, renamed: "schemaNamespace")
   public var schemaName: String { schemaNamespace }
 
-  /// Deprecated initializer - use `init(schemaNamespace:input:output:options:experimentalFeatures:schemaDownloadConfiguration:)`
+  /// Deprecated initializer - use `init(schemaNamespace:input:output:options:experimentalFeatures:schemaDownload:operationManifest:)`
   /// instead.
   ///
   /// - Parameters:
@@ -1215,14 +1237,14 @@ extension ApolloCodegenConfiguration {
   ///  - output: The paths and files output by code generation.
   ///  - options: Rules and options to customize the generated code.
   ///  - experimentalFeatures: Allows users to enable experimental features.
-  @available(*, deprecated, renamed: "init(schemaNamespace:input:output:options:experimentalFeatures:schemaDownloadConfiguration:)")
+  @available(*, deprecated, renamed: "init(schemaNamespace:input:output:options:experimentalFeatures:schemaDownload:operationManifest:)")
   public init(
     schemaName: String,
     input: FileInput,
     output: FileOutput,
     options: OutputOptions = Default.options,
     experimentalFeatures: ExperimentalFeatures = Default.experimentalFeatures,
-    schemaDownloadConfiguration: ApolloSchemaDownloadConfiguration? = Default.schemaDownloadConfiguration
+    schemaDownloadConfiguration: ApolloSchemaDownloadConfiguration? = Default.schemaDownload
   ) {
     self.init(
       schemaNamespace: schemaName,
@@ -1230,7 +1252,7 @@ extension ApolloCodegenConfiguration {
       output: output,
       options: options,
       experimentalFeatures: experimentalFeatures,
-      schemaDownloadConfiguration: schemaDownloadConfiguration)
+      schemaDownload: schemaDownloadConfiguration)
   }
 
   /// Enum to enable using
@@ -1284,7 +1306,7 @@ extension ApolloCodegenConfiguration.FileOutput {
   ///  If `.none`, test mocks will not be generated. Defaults to `.none`.
   ///  - operationIdentifiersPath: An absolute location to an operation id JSON map file
   ///  for use with APQ registration. Defaults to `nil`.
-  @available(*, deprecated, renamed: "init(schemaTypes:operations:testMocks:operationManifest:)")
+  @available(*, deprecated, renamed: "init(schemaTypes:operations:testMocks:)")
   public init(
     schemaTypes: ApolloCodegenConfiguration.SchemaTypesFileOutput,
     operations: ApolloCodegenConfiguration.OperationsFileOutput = Default.operations,
@@ -1294,16 +1316,12 @@ extension ApolloCodegenConfiguration.FileOutput {
     self.schemaTypes = schemaTypes
     self.operations = operations
     self.testMocks = testMocks
-    if let operationIdentifiersPath {
-      self.operationManifest = .init(path: operationIdentifiersPath, version: .legacyAPQ)
-    } else {
-      self.operationManifest = nil
-    }
+    self.operationIDsPath = operationIdentifiersPath
   }
 
   /// An absolute location to an operation id JSON map file.
-  @available(*, deprecated, renamed: "operationManifest.path")
-  public var operationIdentifiersPath: String? { operationManifest?.path }
+  @available(*, deprecated, message: "Moved to ApolloCodegenConfiguration.OperationManifestConfiguration.OperationManifest.path")
+  public var operationIdentifiersPath: String? { operationIDsPath }
 }
 
 extension ApolloCodegenConfiguration.OutputOptions {
@@ -1327,9 +1345,9 @@ extension ApolloCodegenConfiguration.OutputOptions {
   ///   - conversionStrategies: Rules for how to convert the names of values from the schema in
   ///     generated code.
   ///   - pruneGeneratedFiles: Whether unused generated files will be automatically deleted.
-  ///   - finalOperationDefinitions: Whether generated GraphQL operation types will be marked as `final`.
+  ///   - markOperationDefinitionsAsFinal: Whether generated GraphQL operation and local cache mutation class types will be marked as `final`.
   @available(*, deprecated,
-              renamed: "init(additionalInflectionRules:queryStringLiteralFormat:deprecatedEnumCases:schemaDocumentation:selectionSetInitializers:operationDocumentFormat:cocoapodsCompatibleImportStatements:warningsOnDeprecatedUsage:conversionStrategies:pruneGeneratedFiles:finalOperationDefinitions:)"
+              renamed: "init(additionalInflectionRules:queryStringLiteralFormat:deprecatedEnumCases:schemaDocumentation:selectionSetInitializers:operationDocumentFormat:cocoapodsCompatibleImportStatements:warningsOnDeprecatedUsage:conversionStrategies:pruneGeneratedFiles:markOperationDefinitionsAsFinal:)"
   )
   public init(
     additionalInflectionRules: [InflectionRule] = Default.additionalInflectionRules,
@@ -1342,7 +1360,7 @@ extension ApolloCodegenConfiguration.OutputOptions {
     warningsOnDeprecatedUsage: ApolloCodegenConfiguration.Composition = Default.warningsOnDeprecatedUsage,
     conversionStrategies: ApolloCodegenConfiguration.ConversionStrategies = Default.conversionStrategies,
     pruneGeneratedFiles: Bool = Default.pruneGeneratedFiles,
-    finalOperationDefinitions: Bool = Default.finalOperationDefinitions
+    markOperationDefinitionsAsFinal: Bool = Default.markOperationDefinitionsAsFinal
   ) {
     self.additionalInflectionRules = additionalInflectionRules
     self.deprecatedEnumCases = deprecatedEnumCases
@@ -1353,7 +1371,7 @@ extension ApolloCodegenConfiguration.OutputOptions {
     self.warningsOnDeprecatedUsage = warningsOnDeprecatedUsage
     self.conversionStrategies = conversionStrategies
     self.pruneGeneratedFiles = pruneGeneratedFiles
-    self.finalOperationDefinitions = finalOperationDefinitions
+    self.markOperationDefinitionsAsFinal = markOperationDefinitionsAsFinal
   }
   
   /// Deprecated initializer.
@@ -1376,9 +1394,9 @@ extension ApolloCodegenConfiguration.OutputOptions {
   ///   - conversionStrategies: Rules for how to convert the names of values from the schema in
   ///     generated code.
   ///   - pruneGeneratedFiles: Whether unused generated files will be automatically deleted.
-  ///   - finalOperationDefinitions: Whether generated GraphQL operation types will be marked as `final`.
+  ///   - markOperationDefinitionsAsFinal: Whether generated GraphQL operation and local cache mutation class types will be marked as `final`.
   @available(*, deprecated,
-              renamed: "init(additionalInflectionRules:deprecatedEnumCases:schemaDocumentation:selectionSetInitializers:operationDocumentFormat:cocoapodsCompatibleImportStatements:warningsOnDeprecatedUsage:conversionStrategies:pruneGeneratedFiles:finalOperationDefinitions:)"
+              renamed: "init(additionalInflectionRules:deprecatedEnumCases:schemaDocumentation:selectionSetInitializers:operationDocumentFormat:cocoapodsCompatibleImportStatements:warningsOnDeprecatedUsage:conversionStrategies:pruneGeneratedFiles:markOperationDefinitionsAsFinal:)"
   )
   public init(
     additionalInflectionRules: [InflectionRule] = Default.additionalInflectionRules,
@@ -1391,7 +1409,7 @@ extension ApolloCodegenConfiguration.OutputOptions {
     warningsOnDeprecatedUsage: ApolloCodegenConfiguration.Composition = Default.warningsOnDeprecatedUsage,
     conversionStrategies: ApolloCodegenConfiguration.ConversionStrategies = Default.conversionStrategies,
     pruneGeneratedFiles: Bool = Default.pruneGeneratedFiles,
-    finalOperationDefinitions: Bool = Default.finalOperationDefinitions
+    markOperationDefinitionsAsFinal: Bool = Default.markOperationDefinitionsAsFinal
   ) {
     self.additionalInflectionRules = additionalInflectionRules
     self.deprecatedEnumCases = deprecatedEnumCases
@@ -1402,7 +1420,7 @@ extension ApolloCodegenConfiguration.OutputOptions {
     self.warningsOnDeprecatedUsage = warningsOnDeprecatedUsage
     self.conversionStrategies = conversionStrategies
     self.pruneGeneratedFiles = pruneGeneratedFiles
-    self.finalOperationDefinitions = finalOperationDefinitions
+    self.markOperationDefinitionsAsFinal = markOperationDefinitionsAsFinal
   }
 
   /// Whether the generated operations should use Automatic Persisted Queries.
@@ -1410,17 +1428,17 @@ extension ApolloCodegenConfiguration.OutputOptions {
   /// See `APQConfig` for more information on Automatic Persisted Queries.
   @available(*, deprecated, message: "Use OperationDocumentFormat instead.")
   public var apqs: ApolloCodegenConfiguration.APQConfig {
-    switch self.operationDocumentFormat {
-    case .definition:
-      return .disabled
-    case .operationId:
-      return .persistedOperationsOnly
-    case [.operationId, .definition]:
-      return .automaticallyPersist
-    default:
-      return .disabled
+      switch self.operationDocumentFormat {
+      case .definition:
+        return .disabled
+      case .operationId:
+        return .persistedOperationsOnly
+      case [.operationId, .definition]:
+        return .automaticallyPersist
+      default:
+        return .disabled
+      }
     }
-  }
   
   /// Formatting of the GraphQL query string literal that is included in each
   /// generated operation object.
@@ -1440,6 +1458,34 @@ extension ApolloCodegenConfiguration.OutputOptions {
   }
 }
 
+extension ApolloCodegenConfiguration.ConversionStrategies {
+  
+  @available(*, deprecated, renamed: "init(enumCases:fieldAccessors:)")
+  public init(
+    enumCases: CaseConversionStrategy
+  ) {
+    switch enumCases {
+    case .none:
+      self.enumCases = .none
+    case .camelCase:
+      self.enumCases = .camelCase
+    }
+    self.fieldAccessors = Default.fieldAccessors
+  }
+  
+  /// ``CaseConversionStrategy`` is used to specify the strategy used to convert the casing of
+  /// GraphQL schema values into generated Swift code.
+  @available(*, deprecated, message: "Use EnumCaseConversionStrategy instead.")
+    public enum CaseConversionStrategy: String, Codable, Equatable {
+      /// Generates swift code using the exact name provided in the GraphQL schema
+      /// performing no conversion.
+      case none
+      /// Convert to lower camel case from `snake_case`, `UpperCamelCase`, or `UPPERCASE`.
+      case camelCase
+  }
+  
+}
+
 private struct AnyCodingKey: CodingKey {
   var stringValue: String
 
@@ -1455,7 +1501,7 @@ private struct AnyCodingKey: CodingKey {
   }
 }
 
-private func throwIfContainsUnexpectedKey<T, C: CodingKey & CaseIterable>(
+func throwIfContainsUnexpectedKey<T, C: CodingKey & CaseIterable>(
   container: KeyedDecodingContainer<C>,
   type: T.Type,
   decoder: Decoder

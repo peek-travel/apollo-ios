@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07236D332A992498009BFF7B /* RequestContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07236D322A992498009BFF7B /* RequestContextTests.swift */; };
+		073D39F52A8AD1AF001BD34A /* RequestContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 073D39F42A8AD1AF001BD34A /* RequestContext.swift */; };
 		19E9F6AC26D58A9A003AB80E /* OperationMessageIdCreatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E9F6AA26D58A92003AB80E /* OperationMessageIdCreatorTests.swift */; };
 		19E9F6B526D6BF25003AB80E /* OperationMessageIdCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E9F6A826D5867E003AB80E /* OperationMessageIdCreator.swift */; };
 		2EE7FFD0276802E30035DC39 /* CacheKeyConstructionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE7FFCF276802E30035DC39 /* CacheKeyConstructionTests.swift */; };
@@ -14,6 +16,7 @@
 		54DDB0921EA045870009DD99 /* InMemoryNormalizedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54DDB0911EA045870009DD99 /* InMemoryNormalizedCache.swift */; };
 		5AC6CA4322AAF7B200B7C94D /* GraphQLHTTPMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC6CA4222AAF7B200B7C94D /* GraphQLHTTPMethod.swift */; };
 		5BB2C0232380836100774170 /* VersionNumberTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BB2C0222380836100774170 /* VersionNumberTests.swift */; };
+		6608B3362A7D402B006FB655 /* ApolloCodegenConfiguration+OperationManifestConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6608B3342A7D3FF5006FB655 /* ApolloCodegenConfiguration+OperationManifestConfiguration.swift */; };
 		662EA65E2A701483008A1931 /* GenerateOperationManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 662EA65D2A701483008A1931 /* GenerateOperationManifest.swift */; };
 		662EA6602A705BD7008A1931 /* GenerateOperationManifestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 662EA65F2A705BD7008A1931 /* GenerateOperationManifestTests.swift */; };
 		66321AE72A126C4400CC35CB /* IR+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66321AE62A126C4400CC35CB /* IR+Formatting.swift */; };
@@ -1135,6 +1138,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		07236D322A992498009BFF7B /* RequestContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestContextTests.swift; sourceTree = "<group>"; };
+		073D39F42A8AD1AF001BD34A /* RequestContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestContext.swift; sourceTree = "<group>"; };
 		19E9F6A826D5867E003AB80E /* OperationMessageIdCreator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationMessageIdCreator.swift; sourceTree = "<group>"; };
 		19E9F6AA26D58A92003AB80E /* OperationMessageIdCreatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationMessageIdCreatorTests.swift; sourceTree = "<group>"; };
 		2EE7FFCF276802E30035DC39 /* CacheKeyConstructionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheKeyConstructionTests.swift; sourceTree = "<group>"; };
@@ -1142,6 +1147,7 @@
 		54DDB0911EA045870009DD99 /* InMemoryNormalizedCache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InMemoryNormalizedCache.swift; sourceTree = "<group>"; };
 		5AC6CA4222AAF7B200B7C94D /* GraphQLHTTPMethod.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GraphQLHTTPMethod.swift; sourceTree = "<group>"; };
 		5BB2C0222380836100774170 /* VersionNumberTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionNumberTests.swift; sourceTree = "<group>"; };
+		6608B3342A7D3FF5006FB655 /* ApolloCodegenConfiguration+OperationManifestConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApolloCodegenConfiguration+OperationManifestConfiguration.swift"; sourceTree = "<group>"; };
 		662EA65D2A701483008A1931 /* GenerateOperationManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerateOperationManifest.swift; sourceTree = "<group>"; };
 		662EA65F2A705BD7008A1931 /* GenerateOperationManifestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerateOperationManifestTests.swift; sourceTree = "<group>"; };
 		66321AE62A126C4400CC35CB /* IR+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IR+Formatting.swift"; sourceTree = "<group>"; };
@@ -2211,6 +2217,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6608B3332A7D3FCB006FB655 /* CodegenConfiguration */ = {
+			isa = PBXGroup;
+			children = (
+				6608B3342A7D3FF5006FB655 /* ApolloCodegenConfiguration+OperationManifestConfiguration.swift */,
+			);
+			path = CodegenConfiguration;
+			sourceTree = "<group>";
+		};
 		66B18E862A15366400525DFB /* Network */ = {
 			isa = PBXGroup;
 			children = (
@@ -2355,6 +2369,7 @@
 				9B260BF4245A028D00562176 /* HTTPResponse.swift */,
 				E69F436B29B81182006FF548 /* InterceptorRequestChain.swift */,
 				9B260BF2245A026F00562176 /* RequestChain.swift */,
+				073D39F42A8AD1AF001BD34A /* RequestContext.swift */,
 				9B260C03245A090600562176 /* RequestChainNetworkTransport.swift */,
 			);
 			name = RequestChain;
@@ -2553,6 +2568,7 @@
 		9BD681332405F6BB000874CB /* Codegen */ = {
 			isa = PBXGroup;
 			children = (
+				6608B3332A7D3FCB006FB655 /* CodegenConfiguration */,
 				9B7B6F57233C287100F32205 /* ApolloCodegen.swift */,
 				9B7B6F58233C287100F32205 /* ApolloCodegenConfiguration.swift */,
 				E674DB40274C0A9B009BB90E /* Glob.swift */,
@@ -2754,6 +2770,7 @@
 				F16D083B21EF6F7300C458B8 /* SelectionSet_JSONInitializerTests.swift */,
 				C338DF1622DD9DE9006AF33E /* RequestBodyCreatorTests.swift */,
 				9B96500824BE6201003C29C0 /* RequestChainTests.swift */,
+				07236D322A992498009BFF7B /* RequestContextTests.swift */,
 				E61DD76426D60C1800C41614 /* SQLiteDotSwiftDatabaseBehaviorTests.swift */,
 				9B9BBB1A24DB75E60021C30F /* UploadRequestTests.swift */,
 				5BB2C0222380836100774170 /* VersionNumberTests.swift */,
@@ -5061,6 +5078,7 @@
 				E6203342284F1C9600A291D1 /* MockUnionsFileGenerator.swift in Sources */,
 				DE6D07F927BC3B6D009F5F33 /* GraphQLInputField+Rendered.swift in Sources */,
 				9F1A966C258F34BB00A06EEB /* GraphQLSchema.swift in Sources */,
+				6608B3362A7D402B006FB655 /* ApolloCodegenConfiguration+OperationManifestConfiguration.swift in Sources */,
 				9BE74D3D23FB4A8E006D354F /* FileFinder.swift in Sources */,
 				E64F7EBC27A11A510059C021 /* GraphQLNamedType+SwiftName.swift in Sources */,
 				9B7B6F59233C287200F32205 /* ApolloCodegen.swift in Sources */,
@@ -5499,6 +5517,7 @@
 				9F55347B1DE1DB2100E54264 /* ApolloStore.swift in Sources */,
 				9BDE43D122C6655300FD7C7F /* Cancellable.swift in Sources */,
 				9F69FFA91D42855900E000B1 /* NetworkTransport.swift in Sources */,
+				073D39F52A8AD1AF001BD34A /* RequestContext.swift in Sources */,
 				9F8E0BD325668552000D9FA5 /* DataLoader.swift in Sources */,
 				9FCDFD291E33D0CE007519DC /* GraphQLQueryWatcher.swift in Sources */,
 				DE56DC232683B2020090D6E4 /* DefaultInterceptorProvider.swift in Sources */,
@@ -5598,6 +5617,7 @@
 				DED45C2A2615319E0086EF63 /* DefaultInterceptorProviderTests.swift in Sources */,
 				E6EE6F1229C141A600BDE7A5 /* HTTPURLResponseExtensionTests.swift in Sources */,
 				9F21730E2567E6F000566121 /* DataLoaderTests.swift in Sources */,
+				07236D332A992498009BFF7B /* RequestContextTests.swift in Sources */,
 				DED45DEC261B96B70086EF63 /* CacheDependentInterceptorTests.swift in Sources */,
 				DED45DEB261B96B70086EF63 /* SQLiteCacheTests.swift in Sources */,
 				C338DF1722DD9DE9006AF33E /* RequestBodyCreatorTests.swift in Sources */,

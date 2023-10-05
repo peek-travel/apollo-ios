@@ -1,5 +1,41 @@
 # Change Log
 
+## v1.5.1
+
+### Improvement
+
+- **Added `OutputOptions` property to codegen for marking generated classes as `final` ([#3189](https://github.com/apollographql/apollo-ios/pull/3189)):** _Thank you to [@Mordil](https://github.com/Mordil) for the contribution._
+
+### Fixed
+
+- **Codegen `itemsToGenerate` option for `.all` not generating an operation manifest ([#3215](https://github.com/apollographql/apollo-ios/pull/3215)):** _Thank you to [@TizianoCoroneo](https://github.com/TizianoCoroneo) for finding and fixing the issue._
+- **Codegen operation manifest inadvertantly being generated twice ([#3225](https://github.com/apollographql/apollo-ios/pull/3225)):** _Thank you to [@jimisaacs](https://github.com/jimisaacs) for finding and fixing the issue._
+
+## v1.5.0
+
+### New
+
+- **Added the ability pass a custom `RequestContext` to networking APIs ([#3198](https://github.com/apollographql/apollo-ios/pull/3198)):** _Thank you to [@danieltiger](https://github.com/danieltiger) for the contribution._
+  - **Minor Breaking Change:** The `requestContext` parameter is optional with a default value of `nil`. This means there are no breaking changes to the APIs for making networking calls. However, the `requestContext` parameter was also added to the `ApolloClientProtocol`. For custom implementations of this protocol (usually used for unit testing), you will need to add the `requestContext` parameter to your function signatures.
+  
+### Fixed
+
+- **Null values are no longer stripped from the underlying data used by generated `SelectionSet` models ([apollo-ios-dev/#25](https://github.com/apollographql/apollo-ios-dev/pull/25)):**
+  - When these models were manually inserted into the cache, the null fields, which were stripped, were not written to the cache. This caused unintended cache misses when fetching those values back out of the cache.
+  - This fixes [#3092](https://github.com/apollographql/apollo-ios/issues/3092). _Thank you to [@
+aleksanderlorenc-lw](https://github.com/aleksanderlorenc-lw) for raising this issue._ 
+
+## v1.4.0
+
+### New
+
+- **Added the ability to set a casing strategy for field names in code generation ([#2738](https://github.com/apollographql/apollo-ios/issues/2738)):** See PR ([#3171](https://github.com/apollographql/apollo-ios/pull/3171)). _Thank you to [@Spatel91111](https://github.com/Spatel91111) for the feature request._
+
+### Improvement
+
+- **Updated the way persisted queries are configured for code and manifest generation:** See PR ([#3175](https://github.com/apollographql/apollo-ios/pull/3175))
+- **Updated docs for `other` schema module type to provide more clarity ([#3164](https://github.com/apollographql/apollo-ios/issues/3164)):** See PR ([#3170](https://github.com/apollographql/apollo-ios/pull/3170)) _Thank you to [@Mordil](https://github.com/Mordil) for suggesting this update._
+
 ## v1.3.3
 
 ### Fixed

@@ -35,8 +35,7 @@ class ApolloCodegenConfigurationCodableTests: XCTestCase {
             moduleType: .embeddedInTarget(name: "SomeTarget", accessModifier: .public)
           ),
           operations: .absolute(path: "/absolute/path", accessModifier: .internal),
-          testMocks: .swiftPackage(targetName: "SchemaTestMocks"),
-          operationManifest: .init(path: "/operation/identifiers/path")
+          testMocks: .swiftPackage(targetName: "SchemaTestMocks")
         ),
         options: .init(
           additionalInflectionRules: [
@@ -44,15 +43,23 @@ class ApolloCodegenConfigurationCodableTests: XCTestCase {
           ],
           deprecatedEnumCases: .exclude,
           schemaDocumentation: .exclude,
-          operationDocumentFormat: .definition,
           cocoapodsCompatibleImportStatements: true,
           warningsOnDeprecatedUsage: .exclude,
-          conversionStrategies:.init(enumCases: .none),
-          pruneGeneratedFiles: false
+          conversionStrategies:.init(
+            enumCases: .none,
+            fieldAccessors: .camelCase
+          ),
+          pruneGeneratedFiles: false,
+          markOperationDefinitionsAsFinal: true
         ),
         experimentalFeatures: .init(
           clientControlledNullability: true,
           legacySafelistingCompatibleOperations: true
+        ),
+        operationManifest: .init(
+          path: "/operation/identifiers/path",
+          version: .persistedQueries,
+          generateManifestOnCodeGeneration: false
         )
       )
     }
@@ -72,6 +79,11 @@ class ApolloCodegenConfigurationCodableTests: XCTestCase {
             "/path/to/schema.graphqls"
           ]
         },
+        "operationManifest" : {
+          "generateManifestOnCodeGeneration" : false,
+          "path" : "/operation/identifiers/path",
+          "version" : "persistedQueries"
+        },
         "options" : {
           "additionalInflectionRules" : [
             {
@@ -83,9 +95,11 @@ class ApolloCodegenConfigurationCodableTests: XCTestCase {
           ],
           "cocoapodsCompatibleImportStatements" : true,
           "conversionStrategies" : {
-            "enumCases" : "none"
+            "enumCases" : "none",
+            "fieldAccessors" : "camelCase"
           },
           "deprecatedEnumCases" : "exclude",
+          "markOperationDefinitionsAsFinal" : true,
           "operationDocumentFormat" : [
             "definition"
           ],
@@ -97,10 +111,6 @@ class ApolloCodegenConfigurationCodableTests: XCTestCase {
           "warningsOnDeprecatedUsage" : "exclude"
         },
         "output" : {
-          "operationManifest" : {
-            "path" : "/operation/identifiers/path",
-            "version" : "persistedQueries"
-          },
           "operations" : {
             "absolute" : {
               "accessModifier" : "internal",
