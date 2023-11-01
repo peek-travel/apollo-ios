@@ -10,7 +10,7 @@ import Foundation
    public let maxAge: Date
    public let id = UUID()
 
-   init(maxAge: Date = Date()) {
+   public init(maxAge: Date = Date()) {
      self.maxAge = maxAge
    }
  }
