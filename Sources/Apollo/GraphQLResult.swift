@@ -35,7 +35,7 @@ public struct GraphQLResult<Data: RootSelectionSet> {
   /// A list of errors, or `nil` if the operation completed without encountering any errors.
   public let errors: [GraphQLError]?
   /// A dictionary which services can use however they see fit to provide additional information to clients.
-  public let extensions: [String: AnyHashable]?
+  public var extensions: [String: AnyHashable]?
   /// Metadata of this result.
   public let metadata: GraphQLResultMetadata
 
