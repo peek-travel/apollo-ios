@@ -54,6 +54,17 @@ let package = Package(
       dependencies: [
         "Apollo",
         "ApolloAPI"
+      ],
+      exclude: ["snapshot_0.sqlite3"]
+    ),
+    .testTarget(
+      name: "PeekTests",
+      dependencies: [
+        "Apollo",
+        "ApolloAPI",
+        "ApolloSQLite",
+        "ApolloWebSocket",
+        "ApolloTestSupport",
       ]
     ),
     .plugin(
