@@ -12,9 +12,12 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
   private let keyColumn: SQLite.Expression<CacheKey>
   private let recordColumn: SQLite.Expression<String>
 
+<<<<<<< HEAD
   private var lastReceivedAt = SQLite.Expression<Int64>("lastReceivedAt")
   private let version = SQLite.Expression<Int64>("version")
   
+=======
+>>>>>>> tags/1.15.2
   public init(fileURL: URL) throws {
     self.records = Table(Self.tableName)
     self.keyColumn = SQLite.Expression<CacheKey>(Self.keyColumnName)
@@ -59,11 +62,17 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
       return DatabaseRow(cacheKey: key, storedInfo: record, lastReceivedAt: lastReceivedAt)
     }
   }
-  
-  public func addOrUpdateRecordString(_ recordString: String, for cacheKey: CacheKey) throws {
-    try self.db.run(self.records.insert(or: .replace, self.keyColumn <- cacheKey, self.recordColumn <- recordString))
+
+  public func addOrUpdate(records: [(cacheKey: CacheKey, recordString: String)]) throws {
+    guard !records.isEmpty else { return }
+    
+    let setters = records.map {
+      [self.keyColumn <- $0.cacheKey, self.recordColumn <- $0.recordString]
+    }
+
+    try self.db.run(self.records.insertMany(or: .replace, setters))
   }
-  
+
   public func deleteRecord(for cacheKey: CacheKey) throws {
     let query = self.records.filter(keyColumn == cacheKey)
     try self.db.run(query.delete())
@@ -83,6 +92,7 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
     }
   }
 
+<<<<<<< HEAD
   /// Returns the version of the database schema.
   public func readSchemaVersion() throws -> Int64? {
     for record in try db.prepare("PRAGMA user_version") {
@@ -125,4 +135,12 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
 
 extension SQLiteDotSwiftDatabase {
   private static var schemaVersion: Int64 { 1 } 
+=======
+  /// Sets the journal mode for the current database.
+  ///
+  /// - Parameter mode: The journal mode controls how the journal file is stored and processed.
+  public func setJournalMode(mode: JournalMode) throws {
+    try self.db.run("PRAGMA journal_mode = \(mode.rawValue)")
+  }
+>>>>>>> tags/1.15.2
 }

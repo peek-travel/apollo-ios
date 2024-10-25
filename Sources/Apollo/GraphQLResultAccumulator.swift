@@ -4,7 +4,10 @@ import ApolloAPI
 
 import Foundation
 
-protocol GraphQLResultAccumulator: AnyObject {
+import Foundation
+
+@_spi(Execution)
+public protocol GraphQLResultAccumulator: AnyObject {
   associatedtype PartialResult
   associatedtype FieldEntry
   associatedtype ObjectResult
