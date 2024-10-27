@@ -1,5 +1,8 @@
 // swift-tools-version:5.9
+//
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+// Swift 5.9 is available from Xcode 15.0.
+
 
 import PackageDescription
 
@@ -34,14 +37,16 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloAPI",
       dependencies: [],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloSQLite",
@@ -51,7 +56,8 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloWebSocket",
@@ -60,7 +66,8 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloTestSupport",
@@ -79,6 +86,7 @@ let package = Package(
         "ApolloWebSocket",
         "ApolloTestSupport",
       ]
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .plugin(
       name: "Install CLI",

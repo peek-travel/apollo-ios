@@ -13,7 +13,7 @@ public final class SQLiteNormalizedCache {
 
   private let shouldVacuumOnClear: Bool
   
-  let database: SQLiteDatabase
+  let database: any SQLiteDatabase
 
   /// Designated initializer
   ///
@@ -22,16 +22,16 @@ public final class SQLiteNormalizedCache {
   ///   - shouldVacuumOnClear: If the database should also be `VACCUM`ed on clear to remove all traces of info. Defaults to `false` since this involves a performance hit, but this should be used if you are storing any Personally Identifiable Information in the cache.
   ///   - initialRecords: A set of records to initialize the database with.
   /// - Throws: Any errors attempting to open or create the database.
-
-  convenience public init(fileURL: URL, databaseType: SQLiteDatabase.Type = SQLiteDotSwiftDatabase.self, shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
-    try self.init(database: databaseType.init(fileURL: fileURL),
-                  shouldVacuumOnClear: shouldVacuumOnClear,
-                  initialRecords: initialRecords
-    )
+  public init(fileURL: URL,
+              databaseType: any SQLiteDatabase.Type = SQLiteDotSwiftDatabase.self,
+              shouldVacuumOnClear: Bool = false) throws {
+    self.database = try databaseType.init(fileURL: fileURL)
+    self.shouldVacuumOnClear = shouldVacuumOnClear
+    try self.database.createRecordsTableIfNeeded()
   }
 
-  public init(database: SQLiteDatabase,
-              shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
+  public init(database: any SQLiteDatabase,
+              shouldVacuumOnClear: Bool = false) throws {
     self.database = database
     self.shouldVacuumOnClear = shouldVacuumOnClear
     try self.database.setUpDatabase()
@@ -74,12 +74,22 @@ public final class SQLiteNormalizedCache {
     var recordSet = RecordSet(rows: try self.selectRows(for: records.keys))
     let changedFieldKeys = recordSet.merge(records: records)
     let changedRecordKeys = changedFieldKeys.map { self.recordCacheKey(forFieldCacheKey: $0) }
-    try changedRecordKeys.forEach { recordKey in
-      guard let serializedRecord = try recordSet[recordKey]?.record.serialized() else { return }
-      try self.database.insert(recordKey, row: recordSet[recordKey], serializedRecord: serializedRecord)
-    }
 
-    return changedFieldKeys
+    let serializedRecords = try Set(changedRecordKeys)
+      .compactMap { recordKey -> (CacheKey, String)? in
+        if let recordFields = recordSet[recordKey]?.fields {
+          let recordData = try SQLiteSerialization.serialize(fields: recordFields)
+          guard let recordString = String(data: recordData, encoding: .utf8) else {
+            assertionFailure("Serialization should yield UTF-8 data")
+            return nil
+          }
+          return (recordKey, recordString)
+        }
+        return nil
+      }
+
+    try self.database.addOrUpdate(records: serializedRecords)
+    return Set(changedFieldKeys)
   }
   
   fileprivate func selectRows(for keys: Set<CacheKey>) throws -> [RecordRow] {
