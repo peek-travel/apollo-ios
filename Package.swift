@@ -85,7 +85,7 @@ let package = Package(
         "ApolloSQLite",
         "ApolloWebSocket",
         "ApolloTestSupport",
-      ]
+      ],
       swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .plugin(
