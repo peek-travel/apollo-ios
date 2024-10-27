@@ -9,6 +9,10 @@ public final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccu
 
   let dataDictMapper: DataDictMapper
 
+  public init(dataDictMapper: DataDictMapper) {
+    self.dataDictMapper = dataDictMapper
+  }
+
   public var requiresCacheKeyComputation: Bool {
     dataDictMapper.requiresCacheKeyComputation
   }
