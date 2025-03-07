@@ -5,11 +5,14 @@ import Foundation
 
 /// A `GraphQLExecutionSource` configured to execute upon the JSON data from the network response
 /// for a GraphQL operation.
-struct NetworkResponseExecutionSource: GraphQLExecutionSource, CacheKeyComputingExecutionSource {
-  typealias RawObjectData = JSONObject
-  typealias FieldCollector = DefaultFieldSelectionCollector
+@_spi(Execution)
+public struct NetworkResponseExecutionSource: GraphQLExecutionSource, CacheKeyComputingExecutionSource {
+  public typealias RawObjectData = JSONObject
+  public typealias FieldCollector = DefaultFieldSelectionCollector
 
-  func resolveField(
+  public init() {}
+
+  public func resolveField(
     with info: FieldExecutionInfo,
     on object: JSONObject
   ) -> PossiblyDeferred<(AnyHashable?, Date)> {
@@ -17,7 +20,7 @@ struct NetworkResponseExecutionSource: GraphQLExecutionSource, CacheKeyComputing
     return .immediate(.success(result))
   }
 
-  func opaqueObjectDataWrapper(for rawData: JSONObject) -> ObjectData {
+  public func opaqueObjectDataWrapper(for rawData: JSONObject) -> ObjectData {
     ObjectData(_transformer: DataTransformer(), _rawData: rawData)
   }
 

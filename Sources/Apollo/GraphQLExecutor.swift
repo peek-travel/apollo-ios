@@ -3,17 +3,8 @@ import Foundation
 import ApolloAPI
 #endif
 
-/// A field resolver is responsible for resolving a value for a field.
-typealias GraphQLFieldResolver = (_ object: JSONObject, _ info: FieldExecutionInfo) -> (JSONValue?, Date)
-
-/// A reference resolver is responsible for resolving an object based on its key. These references are
-/// used in normalized records, and data for these objects has to be loaded from the cache for execution to continue.
-/// Because data may be loaded from a database, these loads are batched for performance reasons.
-/// By returning a `PossiblyDeferred` wrapper, we allow `ApolloStore` to use a `DataLoader` that
-/// will defer loading the next batch of records from the cache until they are needed.
-typealias ReferenceResolver = (CacheReference) -> PossiblyDeferred<(JSONObject, Date)>
-
-class ObjectExecutionInfo {
+@_spi(Execution)
+public class ObjectExecutionInfo {
   let rootType: any RootSelectionSet.Type
   let variables: GraphQLOperation.Variables?
   let schema: SchemaMetadata.Type
@@ -68,7 +59,8 @@ class ObjectExecutionInfo {
 ///
 /// GraphQL validation makes sure all fields sharing the same response key have the same
 /// arguments and are of the same type, so we only need to resolve one field.
-class FieldExecutionInfo {
+@_spi(Execution)
+public class FieldExecutionInfo {
   let field: Selection.Field
   let parentInfo: ObjectExecutionInfo
 
@@ -181,17 +173,19 @@ public struct GraphQLExecutionError: Error, LocalizedError {
 /// The methods in this class closely follow the
 /// [execution algorithm described in the GraphQL specification]
 /// (http://spec.graphql.org/draft/#sec-Execution)
-final class GraphQLExecutor<Source: GraphQLExecutionSource> {
+@_spi(Execution)
+public final class GraphQLExecutor<Source: GraphQLExecutionSource> {
 
   private let executionSource: Source
 
-  init(executionSource: Source) {
+  public init(executionSource: Source) {
     self.executionSource = executionSource
   }
 
   // MARK: - Execution
 
-  func execute<
+  @_spi(Execution)
+  public func execute<
     Accumulator: GraphQLResultAccumulator,
     SelectionSet: RootSelectionSet
   >(

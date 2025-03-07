@@ -1,5 +1,26 @@
 # Change Log
 
+## v1.12.0
+
+### New
+- **`ID` as a custom scalar ([#3379](https://github.com/apollographql/apollo-ios/issues/3379)):** This changes the generation of the built-in GraphQL `ID` scalar to be treated as a custom scalar that can be modified by the user. See PR [#363](https://github.com/apollographql/apollo-ios-dev/pull/363).
+
+### Fixed
+- **Adds visionOS deployment to ApolloTestSupport podspec ([#364](https://github.com/apollographql/apollo-ios-dev/pull/364)):** This adds the `visionOS` deployment target to the ApolloTestSupport podspec to match the other package managers.
+- **Add `@_spi(Execution)` to executor for import in test mocks ([#362](https://github.com/apollographql/apollo-ios-dev/pull/362)):** This replaces the use of `@testable` in ApolloTestSupport with specific `@_spi` scopes. This resolves a few issues that have been reported where the Apollo module could not be built for testing in non-debug configurations.
+
+## v1.11.0
+
+### New
+
+- **Added `refetchOnFailedUpdates` option to `GraphQLQueryWatcher` ([#347](https://github.com/apollographql/apollo-ios/pull/347)):** This allows you to configure the query watcher not to refetch it's query from the server when a cache read to update it's data fails.
+ 
+### Fixed
+
+- **Generated input objects have default `nil` value for parameters with a schema-defined default value ([#2997](https://github.com/apollographql/apollo-ios/issues/2997)):** When the schema defines a default value for an input parameter, you can now omit that parameter when initializing the input object and the default value will be used. This corrects feature parity with the Apollo Kotlin client. See PR [#358](https://github.com/apollographql/apollo-ios-dev/pull/358).
+
+- **Fix namespacing error in `InterfaceTemplate` ([#3375](https://github.com/apollographql/apollo-ios/issues/3375)):** This fixes an issue where having a schema type named `Interface` caused compilation errors in generated code. See PR [#359](https://github.com/apollographql/apollo-ios-dev/pull/359).
+
 ## v1.10.0
 
 ### New

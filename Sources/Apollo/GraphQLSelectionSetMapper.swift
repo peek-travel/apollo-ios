@@ -4,13 +4,14 @@ import ApolloAPI
 import Foundation
 
 /// An accumulator that converts executed data to the correct values to create a `SelectionSet`.
-final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator {
+@_spi(Execution)
+public final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator {
 
-  let requiresCacheKeyComputation: Bool = false
+  public let requiresCacheKeyComputation: Bool = false
 
   let handleMissingValues: HandleMissingValues
 
-  enum HandleMissingValues {
+  public enum HandleMissingValues {
     case disallow
     case allowForOptionalFields
     /// Using this option will result in an unsafe `SelectionSet` that will crash
@@ -18,13 +19,13 @@ final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator
     case allowForAllFields
   }
 
-  init(
+  public init(
     handleMissingValues: HandleMissingValues = .disallow
   ) {
     self.handleMissingValues = handleMissingValues
   }
 
-  func accept(scalar: AnyHashable, firstReceivedAt: Date,  info: FieldExecutionInfo) throws -> AnyHashable? {
+  public func accept(scalar: AnyHashable, firstReceivedAt: Date,  info: FieldExecutionInfo) throws -> AnyHashable? {
     switch info.field.type.namedType {
     case let .scalar(decodable as any JSONDecodable.Type):
       // This will convert a JSON value to the expected value type.
@@ -34,7 +35,7 @@ final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator
     }
   }
 
-  func accept(customScalar: AnyHashable, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
+  public func accept(customScalar: AnyHashable, firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
     switch info.field.type.namedType {
     case let .customScalar(decodable as any JSONDecodable.Type):
       // This will convert a JSON value to the expected value type,
@@ -45,11 +46,11 @@ final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator
     }
   }
 
-  func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> AnyHashable? {
+  public func acceptNullValue(firstReceivedAt: Date, info: FieldExecutionInfo) -> AnyHashable? {
     return DataDict._NullValue
   }
 
-  func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
+  public func acceptMissingValue(firstReceivedAt: Date, info: FieldExecutionInfo) throws -> AnyHashable? {
     switch handleMissingValues {
     case .allowForOptionalFields where info.field.type.isNullable: fallthrough
     case .allowForAllFields:
@@ -60,20 +61,20 @@ final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator
     }
   }
 
-  func accept(list: [AnyHashable?], info: FieldExecutionInfo) -> AnyHashable? {
+  public func accept(list: [AnyHashable?], info: FieldExecutionInfo) -> AnyHashable? {
     return list
   }
 
-  func accept(childObject: DataDict, info: FieldExecutionInfo) throws -> AnyHashable? {
+  public func accept(childObject: DataDict, info: FieldExecutionInfo) throws -> AnyHashable? {
     return childObject
   }
 
-  func accept(fieldEntry: AnyHashable?, info: FieldExecutionInfo) -> (key: String, value: AnyHashable)? {
+  public func accept(fieldEntry: AnyHashable?, info: FieldExecutionInfo) -> (key: String, value: AnyHashable)? {
     guard let fieldEntry = fieldEntry else { return nil }
     return (info.responseKeyForField, fieldEntry)
   }
  
-  func accept(
+  public func accept(
     fieldEntries: [(key: String, value: AnyHashable)],
     info: ObjectExecutionInfo
   ) throws -> DataDict {
@@ -83,7 +84,7 @@ final class GraphQLSelectionSetMapper<T: SelectionSet>: GraphQLResultAccumulator
     )
   }
 
-  func finish(rootValue: DataDict, info: ObjectExecutionInfo) -> T {
+  public func finish(rootValue: DataDict, info: ObjectExecutionInfo) -> T {
     return T.init(_dataDict: rootValue)
   }
 }
