@@ -34,14 +34,16 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloAPI",
       dependencies: [],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloSQLite",
@@ -51,7 +53,8 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloWebSocket",
@@ -60,7 +63,8 @@ let package = Package(
       ],
       resources: [
         .copy("Resources/PrivacyInfo.xcprivacy")
-      ]
+      ],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .target(
       name: "ApolloTestSupport",
@@ -68,7 +72,8 @@ let package = Package(
         "Apollo",
         "ApolloAPI"
       ],
-      exclude: ["snapshot_0.sqlite3"]
+      exclude: ["snapshot_0.sqlite3"],
+      swiftSettings: [.enableUpcomingFeature("ExistentialAny")]
     ),
     .testTarget(
       name: "PeekTests",

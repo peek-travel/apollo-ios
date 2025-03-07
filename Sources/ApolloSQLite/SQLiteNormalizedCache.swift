@@ -13,7 +13,7 @@ public final class SQLiteNormalizedCache {
 
   private let shouldVacuumOnClear: Bool
   
-  let database: SQLiteDatabase
+  let database: any SQLiteDatabase
 
   /// Designated initializer
   ///
@@ -23,14 +23,14 @@ public final class SQLiteNormalizedCache {
   ///   - initialRecords: A set of records to initialize the database with.
   /// - Throws: Any errors attempting to open or create the database.
 
-  convenience public init(fileURL: URL, databaseType: SQLiteDatabase.Type = SQLiteDotSwiftDatabase.self, shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
+  convenience public init(fileURL: URL, databaseType: any SQLiteDatabase.Type = SQLiteDotSwiftDatabase.self, shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
     try self.init(database: databaseType.init(fileURL: fileURL),
                   shouldVacuumOnClear: shouldVacuumOnClear,
                   initialRecords: initialRecords
     )
   }
 
-  public init(database: SQLiteDatabase,
+  public init(database: any SQLiteDatabase,
               shouldVacuumOnClear: Bool = false, initialRecords: RecordSet? = nil) throws {
     self.database = database
     self.shouldVacuumOnClear = shouldVacuumOnClear

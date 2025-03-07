@@ -9,11 +9,11 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
   private var db: Connection!
   
   private let records: Table
-  private let keyColumn: Expression<CacheKey>
-  private let recordColumn: Expression<String>
+  private let keyColumn: SQLite.Expression<CacheKey>
+  private let recordColumn: SQLite.Expression<String>
 
-  private var lastReceivedAt = Expression<Int64>("lastReceivedAt")
-  private let version = Expression<Int64>("version")
+  private var lastReceivedAt = SQLite.Expression<Int64>("lastReceivedAt")
+  private let version = SQLite.Expression<Int64>("version")
   
   public init(fileURL: URL) throws {
     self.records = Table(Self.tableName)
@@ -31,20 +31,20 @@ public final class SQLiteDotSwiftDatabase: SQLiteDatabase {
   
   public func createRecordsTableIfNeeded() throws {
     try self.db.run(self.records.create(ifNotExists: true) { table in
-      table.column(Expression<Int64>(Self.idColumnName), primaryKey: .autoincrement)
+      table.column(SQLite.Expression<Int64>(Self.idColumnName), primaryKey: .autoincrement)
       table.column(keyColumn, unique: true)
-      table.column(Expression<String>(Self.recordColumName))
+      table.column(SQLite.Expression<String>(Self.recordColumName))
     })
     try self.db.run(self.records.createIndex(keyColumn, unique: true, ifNotExists: true))
   }
 
   public func setUpDatabase() throws {
     try self.db.run(self.records.create(ifNotExists: true) { table in
-      table.column(Expression<Int64>(Self.idColumnName), primaryKey: .autoincrement)
+      table.column(SQLite.Expression<Int64>(Self.idColumnName), primaryKey: .autoincrement)
       table.column(keyColumn, unique: true)
-      table.column(Expression<String>(Self.recordColumName))
+      table.column(SQLite.Expression<String>(Self.recordColumName))
     })
-    try self.db.run(self.records.createIndex(Expression<Int64>(Self.idColumnName), unique: true, ifNotExists: true))
+    try self.db.run(self.records.createIndex(SQLite.Expression<Int64>(Self.idColumnName), unique: true, ifNotExists: true))
     try self.runSchemaMigrationsIfNeeded()
   }
 
